@@ -236,13 +236,13 @@ enemyDelay = 0.5,
 
 foodDelay = 0.5,
 
-eggDelay = 0.001, -- ultra rápido
+eggDelay = 0.001, -- ultra rapide
 
 }
 
 
 
--- Estado dos bosses ativos
+-- Etat des boss actif
 
 local activeBosses = {}
 
@@ -706,7 +706,7 @@ addTask("nests", doNests, config.eggDelay)
 
 mainThread = task.spawn(mainLoop)
 
-Rayfield:Notify({ Title = "Atomic-Hub", Content = "Farm iniciado!", Duration = 3 })
+Rayfield:Notify({ Title = "Atomic-Hub", Content = "Farm Starting!", Duration = 3 })
 
 end
 
@@ -720,7 +720,7 @@ if mainThread then task.cancel(mainThread); mainThread = nil end
 
 activeBosses = {}
 
-Rayfield:Notify({ Title = "Atomic-Hub", Content = "Farm parado.", Duration = 2 })
+Rayfield:Notify({ Title = "Atomic-Hub", Content = "Farm Ended.", Duration = 2 })
 
 end
 
@@ -738,7 +738,7 @@ LoadingSubtitle = "Complete Edition",
 
 ConfigurationSaving = { Enabled = true, FolderName = "Atomic-Hub", FileName = "Config" },
 
-Theme = "Dark"
+Theme = "Blue"
 
 })
 
