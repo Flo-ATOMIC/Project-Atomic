@@ -234,18 +234,11 @@ end
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
 
-    local batchSize = 10  -- Envoie 10 requêtes à la fois (3 batchs de 10 pour atteindre 30)
-    local delayBetweenBatches = 0.01  -- 10ms entre chaque batch (réduit les lags)
-
-    for _ = 1, 3 do  -- 3 batchs de 10 requêtes = 30 requêtes au total
-        for i = 1, batchSize do
-            task.spawn(function()
-                pcall(function()
-                    HatchRemote:FireServer()
-                end)
-            end)
-        end
-        task.wait(delayBetweenBatches)  -- Petit délai entre les batchs
+    -- Envoie les 30 requêtes en une seule vague, sans délai
+    for i = 1, 30 do
+        task.spawn(function()
+            pcall(HatchRemote.FireServer, HatchRemote)
+        end)
     end
 end
  
