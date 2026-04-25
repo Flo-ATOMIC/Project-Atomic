@@ -224,41 +224,60 @@ end
 -- Funções de eggs (usam eggDelay)
 local function doPlanting()
     if not config.autoPlant or #eggsSelected == 0 or not PlantRemote then return end
+
     for _, zone in ipairs(eggsSelected) do
-        for _ = 1, 9 do
-            task.spawn(function() pcall(PlantRemote.FireServer, PlantRemote, zone) end)
+        for i = 1, 9 do  -- 9 requêtes par zone
+            spawn(function()
+                pcall(function()
+                    PlantRemote:FireServer(zone)
+                end)
+            end)
+            task.wait(0.02)  -- Délai court
         end
     end
 end
  
+D'accord, si les œufs ne sont plus nourris avec le script optimisé pour le hatching, c'est probablement parce que la boucle continue et agressive de doHatching() monopolise les ressources et bloque l'exécution de doNests().
+Voici une solution équilibrée qui permet de :
+
+Garder une vitesse élevée pour le hatching.
+Laisser les autres fonctions (comme doNests()) s’exécuter sans interférence.
+Éviter les lags en optimisant l’envoi des requêtes.
+
+1. Version corrigée de doHatching() (sans bloquer doNests)
+lua
+Copier
+
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
 
-    local targetEggsPerSecond = 100  -- Objectif : 100 œufs/seconde
-    local batchSize = 10             -- 10 requêtes par batch
-    local delayBetweenBatches = 0.05 -- 50ms entre chaque batch (1000ms/20 batchs = 100 œufs/seconde)
-
+    -- Envoie 30 requêtes en parallèle, mais avec un système non-bloquant
     while config.autoHatch do
-        -- Envoie un batch de 10 requêtes
-        for i = 1, batchSize do
+        for i = 1, 30 do
             task.spawn(function()
-                pcall(HatchRemote.FireServer, HatchRemote)
+                pcall(function()
+                    HatchRemote:FireServer()
+                end)
             end)
         end
-        -- Attend avant le prochain batch (ajoute une randomisation pour éviter la détection)
-        task.wait(delayBetweenBatches * (0.9 + math.random() * 0.2))  -- Délai aléatoire entre 45ms et 55ms
+        task.wait(0.05)  -- Petit délai pour laisser les autres fonctions s'exécuter
     end
 end
  
 local function doNests()
     if not config.autoNests or not FeedRemote then return end
+
     local nests = updateNests()
-    if nests then
-        for _, nest in ipairs(nests:GetChildren()) do
-            for _ = 1, 5 do
-                task.spawn(function() pcall(FeedRemote.FireServer, FeedRemote, nest) end)
-            end
-        end
+    if not nests then return end
+
+    -- Nourrit chaque nest avec un délai minimal
+    for _, nest in ipairs(nests:GetChildren()) do
+        spawn(function()  -- Utilise spawn pour ne pas bloquer
+            pcall(function()
+                FeedRemote:FireServer(nest)
+            end)
+        end)
+        task.wait(0.02)  -- Délai court pour éviter les lags
     end
 end
  
