@@ -234,11 +234,19 @@ end
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
 
-    -- Envoie les 30 requêtes en une seule vague, sans délai
-    for i = 1, 30 do
-        task.spawn(function()
-            pcall(HatchRemote.FireServer, HatchRemote)
-        end)
+    local targetEggsPerSecond = 100  -- Objectif : 100 œufs/seconde
+    local batchSize = 10             -- 10 requêtes par batch
+    local delayBetweenBatches = 0.05 -- 50ms entre chaque batch (1000ms/20 batchs = 100 œufs/seconde)
+
+    while config.autoHatch do
+        -- Envoie un batch de 10 requêtes
+        for i = 1, batchSize do
+            task.spawn(function()
+                pcall(HatchRemote.FireServer, HatchRemote)
+            end)
+        end
+        -- Attend avant le prochain batch (ajoute une randomisation pour éviter la détection)
+        task.wait(delayBetweenBatches * (0.9 + math.random() * 0.2))  -- Délai aléatoire entre 45ms et 55ms
     end
 end
  
