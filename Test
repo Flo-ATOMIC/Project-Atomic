@@ -117,10 +117,10 @@ local config = {
     bossAttackDelay = 0.5,
     enemyDelay = 0.5,
     foodDelay = 0.5,
-    eggDelay = 0.001, -- ultra rápido
+    eggDelay = 0.0001, -- ultra rapide
 }
  
--- Estado dos bosses ativos
+-- Etat des bosses actif
 local activeBosses = {}
 local eggsSelected = {}
  
@@ -233,8 +233,16 @@ end
  
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
-    for _ = 1, 5 do
-        task.spawn(function() pcall(HatchRemote.FireServer, HatchRemote) end)
+
+    local totalRequests = 5
+    local baseDelay = config.eggDelay or 0.1
+
+    for i = 1, totalRequests do
+        task.spawn(function()
+            pcall(HatchRemote.FireServer, HatchRemote)
+        end)
+        -- Délai aléatoire pour éviter les patterns
+        task.wait(baseDelay * math.random(5, 15) / 10)
     end
 end
  
@@ -269,7 +277,7 @@ local function scanBosses()
     activeBosses = new
 end
  
--- Sacrifício
+-- Sacrifice
 local function sacrificePet(petName)
     if SacrificeRemote then
         local success = pcall(function() SacrificeRemote:InvokeServer("SacrificeWell", petName) end)
@@ -281,7 +289,7 @@ local function sacrificePet(petName)
     end
 end
  
--- Remover animação
+-- Remover animation
 local function removeHatchAnimation()
     local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("HatchAnimationEvent")
     if ev then ev:Destroy() end
@@ -417,7 +425,7 @@ speedTab:CreateSection("Delays")
 speedTab:CreateSlider({ Name = "Boss Attack Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = config.bossAttackDelay, Callback = function(v) config.bossAttackDelay = v end })
 speedTab:CreateSlider({ Name = "Enemy Cycle Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = config.enemyDelay, Callback = function(v) config.enemyDelay = v end })
 speedTab:CreateSlider({ Name = "Food Cycle Delay", Range = {0.1, 3}, Increment = 0.1, CurrentValue = config.foodDelay, Callback = function(v) config.foodDelay = v end })
-speedTab:CreateSlider({ Name = "Eggs Cycle Delay", Range = {0.001, 0.5}, Increment = 0.001, CurrentValue = config.eggDelay, Callback = function(v) config.eggDelay = v end })
+speedTab:CreateSlider({ Name = "Eggs Cycle Delay", Range = {0.0001, 0.5}, Increment = 0.0001, CurrentValue = config.eggDelay, Callback = function(v) config.eggDelay = v end })
  
 -- Enemies Tab
 local enemiesTab = win:CreateTab("Enemies")
