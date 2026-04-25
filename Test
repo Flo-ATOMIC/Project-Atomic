@@ -1,30 +1,33 @@
 -- Chargement de Rayfield (UI)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- Configuration de base
+-- Configuration complète
 local config = {
     autoHatch = false,
     autoPlant = false,
     autoNests = false,
-    eggDelay = 0.01,
-    eggsSelected = {},  -- À remplir avec tes zones d'œufs
+    eggDelay = 0.01,  -- Délai de base pour les actions
+    eggsSelected = {},  -- Zones de plantation sélectionnées
     bossAttackDelay = 0.1,
     enemyDelay = 0.1,
-    foodDelay = 0.1
+    foodDelay = 0.1,
+    selectedNests = {},  -- Nids sélectionnés pour la nourriture
+    selectedPlayers = {}  -- Joueurs ciblés (si nécessaire)
 }
 
 -- Initialisation de l'UI
 local Window = Rayfield:CreateWindow({
-    Name = "Egg Auto-Farm",
-    LoadingTitle = "Chargement...",
+    Name = "Egg Auto-Farm V2",
+    LoadingTitle = "Chargement des modules...",
     LoadingSubtitle = "par Le Chat"
 })
 
--- Onglet principal
+-- Onglets
 local MainTab = Window:CreateTab("Auto-Farm", nil)
 local SpeedTab = Window:CreateTab("Delays", nil)
+local ConfigTab = Window:CreateTab("Configuration", nil)
 
--- Section pour les toggles
+-- Section Toggles (Activation/Désactivation)
 local ToggleSection = MainTab:CreateSection("Activer/Désactiver")
 local ToggleHatching = MainTab:CreateToggle({
     Name = "Auto Hatching",
@@ -42,7 +45,7 @@ local ToggleNests = MainTab:CreateToggle({
     Callback = function(v) config.autoNests = v end
 })
 
--- Section pour les sliders (délais)
+-- Section Delays (Sliders)
 SpeedTab:CreateSlider({
     Name = "Egg Delay (ms)",
     Range = {1, 500},
@@ -51,100 +54,120 @@ SpeedTab:CreateSlider({
     Callback = function(v) config.eggDelay = v / 1000 end
 })
 SpeedTab:CreateSlider({
-    Name = "Boss Attack Delay",
+    Name = "Boss Attack Delay (ms)",
     Range = {100, 1000},
     Increment = 10,
     CurrentValue = config.bossAttackDelay * 1000,
     Callback = function(v) config.bossAttackDelay = v / 1000 end
 })
 SpeedTab:CreateSlider({
-    Name = "Enemy Cycle Delay",
+    Name = "Enemy Cycle Delay (ms)",
     Range = {100, 1000},
     Increment = 10,
     CurrentValue = config.enemyDelay * 1000,
     Callback = function(v) config.enemyDelay = v / 1000 end
 })
 SpeedTab:CreateSlider({
-    Name = "Food Cycle Delay",
+    Name = "Food Cycle Delay (ms)",
     Range = {100, 3000},
     Increment = 10,
     CurrentValue = config.foodDelay * 1000,
     Callback = function(v) config.foodDelay = v / 1000 end
 })
 
--- Section pour les logs
+-- Section Configuration (Sélection des zones/nids)
+local ConfigSection = ConfigTab:CreateSection("Zones et Nids")
+
+-- Bouton pour sélectionner les zones de plantation
+ConfigTab:CreateButton({
+    Name = "Sélectionner les zones de plantation",
+    Callback = function()
+        -- Exemple : Remplacer par ta logique de sélection
+        config.eggsSelected = {}  -- Réinitialise
+        for _, zone in ipairs(workspace:FindFirstChild("Zones") or {}) do
+            table.insert(config.eggsSelected, zone)
+        end
+        Rayfield:Notify({Title = "Succès", Content = "Zones sélectionnées : " .. #config.eggsSelected})
+    end
+})
+
+-- Bouton pour sélectionner les nids
+ConfigTab:CreateButton({
+    Name = "Sélectionner les nids",
+    Callback = function()
+        -- Exemple : Remplacer par ta logique de sélection
+        config.selectedNests = {}  -- Réinitialise
+        local nests = updateNests()  -- Supposons que cette fonction existe
+        if nests then
+            for _, nest in ipairs(nests:GetChildren()) do
+                table.insert(config.selectedNests, nest)
+            end
+        end
+        Rayfield:Notify({Title = "Succès", Content = "Nids sélectionnés : " .. #config.selectedNests})
+    end
+})
+
+-- Section Logs
 local LogSection = MainTab:CreateSection("Logs")
-local LogLabel = MainTab:CreateLabel({Text = "Prêt !"})
+local LogLabel = MainTab:CreateLabel({Text = "Prêt ! (Appuyez sur F9 pour ouvrir/fermer)"})
 
 -- Fonction pour mettre à jour les logs
 local function updateLog(text)
     LogLabel:Set(text)
 end
 
--- Fonction de hatching
+-- Fonction de hatching (30 requêtes en parallèle)
 local function doHatching()
-    while true do
-        if not config.autoHatch then task.wait(1) else break end
-    end
-    updateLog("Hatching démarré...")
     while config.autoHatch do
         for i = 1, 30 do
             task.spawn(function()
                 pcall(function()
-                    HatchRemote:FireServer()
+                    if HatchRemote then
+                        HatchRemote:FireServer()
+                    end
                 end)
             end)
         end
         task.wait(config.eggDelay)
     end
-    updateLog("Hatching arrêté.")
 end
 
--- Fonction de planting
+-- Fonction de planting (9 requêtes par zone)
 local function doPlanting()
-    while true do
-        if not config.autoPlant then task.wait(1) else break end
-    end
-    updateLog("Planting démarré...")
     while config.autoPlant do
         for _, zone in ipairs(config.eggsSelected) do
             for i = 1, 9 do
                 task.spawn(function()
                     pcall(function()
-                        PlantRemote:FireServer(zone)
+                        if PlantRemote then
+                            PlantRemote:FireServer(zone)
+                        end
                     end)
                 end)
                 task.wait(config.eggDelay / 2)
             end
         end
-        task.wait(1)
+        task.wait(1)  -- Pause entre les cycles
     end
-    updateLog("Planting arrêté.")
 end
 
--- Fonction de nourriture des nids
+-- Fonction de nourriture des nids (5 requêtes par nid)
 local function doNests()
-    while true do
-        if not config.autoNests then task.wait(1) else break end
-    end
-    updateLog("Nests démarré...")
     while config.autoNests do
-        local nests = updateNests()
-        if nests then
-            for _, nest in ipairs(nests:GetChildren()) do
-                for i = 1, 5 do
-                    task.spawn(function()
-                        pcall(function()
+        for _, nest in ipairs(config.selectedNests) do
+            for i = 1, 5 do
+                task.spawn(function()
+                    pcall(function()
+                        if FeedRemote then
                             FeedRemote:FireServer(nest)
-                        end)
+                        end
                     end)
-                    task.wait(config.eggDelay)
-                end
+                end)
+                task.wait(config.eggDelay)
             end
         end
-        task.wait(1)
+        task.wait(1)  -- Pause entre les cycles
     end
-    updateLog("Nests arrêté.")
 end
 
 -- Démarrage des fonctions dans des threads séparés
@@ -166,5 +189,10 @@ task.spawn(function()
     while true do
         if config.autoNests then doNests() end
         task.wait(1)
+    end
+end)
+
+-- Notification de démarrage
+Rayfield:Notify({Title = "Script chargé", Content = "Appuyez sur F9 pour ouvrir le menu !"})
     end
 end)
