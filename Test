@@ -234,20 +234,13 @@ end
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
 
-    -- Nombre total d'œufs à ouvrir (ajustable)
-    local totalEggs = 100000
-    -- Nombre de requêtes envoyées en parallèle à chaque boucle
-    local batchSize = 50
-
-    -- Boucle principale : envoie des "batchs" de requêtes en parallèle
-    for i = 1, totalEggs, batchSize do
-        for j = 1, batchSize do
-            task.spawn(function()
-                pcall(HatchRemote.FireServer, HatchRemote)
+    -- Envoie 50 requêtes en parallèle, sans délai
+    for i = 1, 50 do
+        spawn(function()  -- Utilise 'spawn' au lieu de 'task.spawn' pour une meilleure compatibilité mobile
+            pcall(function()
+                HatchRemote:FireServer()
             end)
-        end
-        -- Petit délai pour éviter de saturer la connexion (optionnel, à ajuster)
-        task.wait(0.01)
+        end)
     end
 end
  
