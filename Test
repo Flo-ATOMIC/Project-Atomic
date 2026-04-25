@@ -234,17 +234,18 @@ end
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
 
-    -- Utilise ton eggDelay pour contrôler la vitesse
     local delay = config.eggDelay or 0.001
+    local batchSize = 5  -- Nombre de requêtes envoyées en parallèle
 
-    -- Boucle ultra-rapide avec gestion des erreurs
-    while true do  -- Remplace par une condition si tu veux limiter le nombre d'œufs
-        spawn(function()
-            pcall(function()
-                HatchRemote:FireServer()
+    while true do
+        for i = 1, batchSize do
+            spawn(function()
+                pcall(function()
+                    HatchRemote:FireServer()
+                end)
             end)
-        end)
-        task.wait(delay)  -- Respecte ton eggDelay
+        end
+        task.wait(delay)
     end
 end
  
