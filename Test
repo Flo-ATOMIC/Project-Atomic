@@ -222,42 +222,122 @@ local function collectFood()
 end
  
 -- Funções de eggs (usam eggDelay)
+Si ton système ne nourrit plus les œufs après les modifications, c'est probablement parce que la boucle while true dans doHatching() bloque l'exécution des autres fonctions (comme doNests() ou doPlanting()). Voici comment corriger cela pour que tout fonctionne en parallèle, tout en respectant ton système de eggDelay.
+
+Solution : Exécution en parallèle sans blocage
+1. Correction de doHatching()
+On va utiliser une boucle non-bloquante avec task.spawn pour permettre aux autres fonctions de s'exécuter en même temps.
+lua
+Copier
+
+local function doHatching()
+    if not config.autoHatch or not HatchRemote then return end
+
+    -- Utilise ton eggDelay pour contrôler la vitesse
+    local delay = config.eggDelay or 0.001
+
+    -- Fonction récursive pour éviter de bloquer le script
+    local function hatchLoop()
+        spawn(function()
+            pcall(function()
+                HatchRemote:FireServer()
+            end)
+        end)
+        task.wait(delay)
+        if config.autoHatch then
+            hatchLoop()  -- Rappelle la fonction pour continuer
+        end
+    end
+
+    hatchLoop()  -- Démarre la boucle
+end
+
+
+
+
+2. Vérification de doNests()
+Assure-toi que doNests() est bien appelé et qu'il utilise aussi ton système de eggDelay. Voici une version optimisée :
+lua
+Copier
+
+local function doNests()
+    if not config.autoNests or not FeedRemote then return end
+
+    local nests = updateNests()
+    if not nests then return end
+
+    local delay = config.eggDelay or 0.001
+
+    for _, nest in ipairs(nests:GetChildren()) do
+        spawn(function()
+            pcall(function()
+                FeedRemote:FireServer(nest)
+            end)
+        end)
+        task.wait(delay)  -- Respecte le même délai que pour le hatching
+    end
+end
+
+
+
+
+3. Vérification de doPlanting()
+Même principe pour doPlanting() :
+lua
+Copier
+
 local function doPlanting()
     if not config.autoPlant or #eggsSelected == 0 or not PlantRemote then return end
+
+    local delay = config.eggDelay or 0.001
+
     for _, zone in ipairs(eggsSelected) do
-        for _ = 1, 9 do
-            task.spawn(function() pcall(PlantRemote.FireServer, PlantRemote, zone) end)
-        end
+        spawn(function()
+            pcall(function()
+                PlantRemote:FireServer(zone)
+            end)
+        end)
+        task.wait(delay)
     end
 end
  
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
 
+    -- Utilise ton eggDelay pour contrôler la vitesse
     local delay = config.eggDelay or 0.001
-    local batchSize = 5  -- Nombre de requêtes envoyées en parallèle
 
-    while true do
-        for i = 1, batchSize do
-            spawn(function()
-                pcall(function()
-                    HatchRemote:FireServer()
-                end)
+    -- Fonction récursive pour éviter de bloquer le script
+    local function hatchLoop()
+        spawn(function()
+            pcall(function()
+                HatchRemote:FireServer()
             end)
-        end
+        end)
         task.wait(delay)
+        if config.autoHatch then
+            hatchLoop()  -- Rappelle la fonction pour continuer
+        end
     end
+
+    hatchLoop()  -- Démarre la boucle
 end
  
 local function doNests()
     if not config.autoNests or not FeedRemote then return end
+
     local nests = updateNests()
-    if nests then
-        for _, nest in ipairs(nests:GetChildren()) do
-            for _ = 1, 5 do
-                task.spawn(function() pcall(FeedRemote.FireServer, FeedRemote, nest) end)
-            end
-        end
+    if not nests then return end
+
+    local delay = config.eggDelay or 0.001
+
+    for _, nest in ipairs(nests:GetChildren()) do
+        spawn(function()
+            pcall(function()
+                FeedRemote:FireServer(nest)
+            end)
+        end)
+        task.wait(delay)  -- Respecte le même délai que pour le hatching
     end
 end
  
