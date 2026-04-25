@@ -235,7 +235,7 @@ local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
 
     -- Envoie 20 requêtes en parallèle, sans aucun délai
-    for i = 1, 30 do
+    for i = 1, 25 do
         task.spawn(function()
             pcall(HatchRemote.FireServer, HatchRemote)
         end)
