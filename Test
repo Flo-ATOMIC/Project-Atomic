@@ -234,15 +234,11 @@ end
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
 
-    local totalRequests = 5
-    local baseDelay = config.eggDelay or 0.1
-
-    for i = 1, totalRequests do
+    -- Envoie toutes les requêtes en même temps, sans délai
+    for i = 1, 5 do
         task.spawn(function()
             pcall(HatchRemote.FireServer, HatchRemote)
         end)
-        -- Délai aléatoire pour éviter les patterns
-        task.wait(baseDelay * math.random(5, 15) / 10)
     end
 end
  
