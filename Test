@@ -286,25 +286,7 @@ local function removeHatchAnimation()
     local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("HatchAnimationEvent")
     if ev then ev:Destroy() end
 end
-
--- Remove animation and sound coins
-local coinsDrop = workspace:FindFirstChild("CoinsDrop")
-if coinsDrop then
-    coinsDrop:Destroy()
-
--- 2. Détruire MainUIFramework dans PlayerGui ou UI
-local mainUIFramework = playerGui:FindFirstChild("MainUIFramework")
-if not mainUIFramework then
-    -- Vérifier dans un dossier "UI" sous PlayerGui
-    local uiFolder = playerGui:FindFirstChild("UI")
-    if uiFolder then
-        mainUIFramework = uiFolder:FindFirstChild("MainUIFramework")
-    end
-end
-
-if mainUIFramework then
-    mainUIFramework:Destroy()
-    
+ 
 -- Sistema de tarefas (loop principal)
 local active = false
 local mainThread = nil
@@ -487,8 +469,6 @@ eggTab:CreateToggle({ Name = "Auto Plant", CurrentValue = config.autoPlant, Call
 eggTab:CreateToggle({ Name = "Auto Hatch", CurrentValue = config.autoHatch, Callback = function(v) config.autoHatch = v end })
 eggTab:CreateToggle({ Name = "Auto Nests", CurrentValue = config.autoNests, Callback = function(v) config.autoNests = v end })
 eggTab:CreateButton({ Name = "Remove Hatch Animation", Callback = removeHatchAnimation })
-eggTab:CreateButton({ Name = "Remove Coins Drop Sound", Callback =coinsDrop })
-eggTab:CreateButton({ Name = "Remove Coins Drop" , Callback =mainUIFramework })
  
 eggTab:CreateSection("Select Eggs")
 for _, egg in ipairs(eggData) do
