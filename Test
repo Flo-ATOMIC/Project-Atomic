@@ -1,4 +1,3 @@
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,19 +16,8 @@ local PlantRemote = Events and Events:FindFirstChild("PlantEggEvent")
 local FeedRemote = Events and Events:FindFirstChild("FeedEggEvent")
 local SacrificeRemote = Functions and Functions:FindFirstChild("SacrificeFunction")
 local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
-
---Safefireremote
-local function safeFireRemote(remote, ...)
-    local args = {...}
-    local success, err = pcall(function()
-        remote:FireServer(unpack(args))
-    end)
-    if not success then
-        warn("Erreur RemoteEvent :", err, debug.traceback())
-    end
-end
-
--- Cache de zonas
+ 
+-- Données des zones
 local zoneCache = {}
 local zoneList = {
     "SummerEvent1", "WinterEvent1", "EleEgg1", "6", "4", "15", "10", "27",
@@ -45,7 +33,7 @@ for _, z in ipairs(zoneList) do
     if success and result then zoneCache[z] = result end
 end
  
--- Cache de pets e ninhos
+-- Données des pets
 local petCache = {}
 local nestCache = nil
 local lastPetUpdate = 0
@@ -59,12 +47,14 @@ local function updatePets()
         if LocalPlayer.Character then
             local petsObj = LocalPlayer.Character:FindFirstChild("Pets")
             if petsObj then
-                petCache = petsObj:GetChildren()
+                local pets = petsObj:GetChildren()
+                for i, v in ipairs(pets) do petCache[i] = v end
+                for i = #pets + 1, #petCache do petCache[i] = nil end
             else
-                petCache = {}
+                for i = 1, #petCache do petCache[i] = nil end
             end
         else
-            petCache = {}
+            for i = 1, #petCache do petCache[i] = nil end
         end
         lastPetUpdate = now
     end
@@ -80,7 +70,7 @@ local function updateNests()
     return nestCache
 end
  
--- Mapas de bosses
+-- Zone des boss
 local bossZoneMap = {
     Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Tiki Monster"] = "Zone10B1",
     ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
@@ -94,7 +84,7 @@ local bossList = {
 local bossEnabled = {}
 for _, name in ipairs(bossList) do bossEnabled[name] = true end
  
--- Lista de inimigos completa
+-- Liste des ennemies
 local enemyZones = {
     { name = "Summer", zone = "SummerEventZone", attackAll = true },
     { name = "Winter", zone = "WinterEventZone", attackAll = true },
@@ -108,13 +98,13 @@ local enemyZones = {
 local enemyEnabled = {}
 for i = 1, #enemyZones do enemyEnabled[i] = false end
  
--- Zonas de comida
+-- Zone de collecte
 local foodZones = {
     { name = "Crystal Food", zone = "Zone12.1", enabled = false },
     { name = "Draco Food", zone = "Zone12", enabled = false },
 }
  
--- Configurações
+-- Configuration
 local config = {
     farmBosses = false,
     farmEnemies = false,
@@ -127,14 +117,14 @@ local config = {
     bossAttackDelay = 0.5,
     enemyDelay = 0.5,
     foodDelay = 0.5,
-    eggDelay = 0.001, -- ultra rápido
+    eggDelay = 0.001, -- ultra rapide
 }
  
--- Estado dos bosses ativos
+-- Etat des boss actif
 local activeBosses = {}
 local eggsSelected = {}
  
--- Dados dos ovos (completos)
+-- Nom des oeufs (complet)
 local eggData = {
     { name = "Summer Egg", zone = "SummerEvent1" },
     { name = "Winter Egg", zone = "WinterEvent1" },
@@ -159,15 +149,15 @@ local eggData = {
     { name = "Legendary Egg", zone = "14" },
 }
  
--- Funções de ataque
+-- Fonctionnement des attaque
 local function safeAttackEnemy(enemy, pet)
-    if CombatRemote then
-        pcall(CombatRemote.InvokeServer, CombatRemote, "AttackEnemy", enemy, pet)
-        task.wait(0.05 + math.random() * 0.1)  -- Petit délai aléatoire
-    end
+    if CombatRemote then pcall(CombatRemote.InvokeServer, CombatRemote, "AttackEnemy", enemy, pet) end
+end
+local function safeCollectFood(food, pet)
+    if CollectionRemote then pcall(CollectionRemote.InvokeServer, CollectionRemote, "CollectFood", food, pet) end
 end
  
--- Ataque a inimigos
+-- Ataque les ennemis
 local function attackEnemiesInZone(zoneName, specificEnemy, attackAll)
     local zone = zoneCache[zoneName]
     if not zone then return end
@@ -194,22 +184,20 @@ local function attackEnemiesInZone(zoneName, specificEnemy, attackAll)
     end
 end
  
--- Ataque a bosses
+-- Attaquer les boss
 local function attackBosses()
     if #activeBosses == 0 then return end
     local pets = updatePets()
     if #pets == 0 then return end
-
     for _, boss in ipairs(activeBosses) do
-        -- Vérifie que le boss existe toujours
-        if boss and boss.Parent and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
+        if boss and boss.Parent then
             safeAttackEnemy(boss, pets[1])
-            task.wait(config.bossAttackDelay + math.random() * 0.2)  -- Délai aléatoire supplémentaire
+            task.wait(config.bossAttackDelay)
         end
     end
 end
  
--- Coleta de comida
+-- Collecter de la nourriture
 local function collectFood()
     for _, fz in ipairs(foodZones) do
         if fz.enabled then
@@ -233,64 +221,38 @@ local function collectFood()
     end
 end
  
--- Funções de eggs (usam eggDelay)
+-- Fonctionnement des oeufs
 local function doPlanting()
-    if not config.autoPlant or #eggsSelected == 0 or not PlantRemote then
-        Rayfield:Notify({ Title = "Info", Content = "Planting désactivé ou configuration manquante.", Duration = 2 })
-        return
-    end
-
+    if not config.autoPlant or #eggsSelected == 0 or not PlantRemote then return end
     for _, zone in ipairs(eggsSelected) do
-        -- 3 requêtes max par zone (au lieu de 9)
-        for i = 1, 3 do
-            safeFireRemote(PlantRemote, zone)
-            task.wait(0.2 + math.random() * 0.3)  -- Délai aléatoire
+        for _ = 1, 9 do
+            task.spawn(function() pcall(PlantRemote.FireServer, PlantRemote, zone) end)
         end
-        task.wait(1 + math.random() * 2)  -- Pause entre les zones
-    end
-end
-
-local function doHatching()
-    if not config.autoHatch or not HatchRemote then
-        Rayfield:Notify({ Title = "Erreur", Content = "Hatching désactivé ou Remote manquant.", Duration = 2 })
-        return
-    end
-
-    while config.autoHatch do
-        -- Batch réduit à 5 requêtes max
-        for i = 1, 5 do
-            pcall(HatchRemote.FireServer, HatchRemote)
-            task.wait(0.1 + math.random() * 0.2)  -- Délai aléatoire entre 0.1s et 0.3s
-        end
-        task.wait(1 + math.random() * 2)  -- Pause aléatoire entre 1s et 3s
-    end
-end
-
-local function doNests()
-    if not config.autoNests or not FeedRemote then
-        Rayfield:Notify({ Title = "Info", Content = "Nests désactivé ou Remote manquant.", Duration = 2 })
-        return
-    end
-
-    local nests = updateNests()
-    if not nests then return end
-
-    for _, nest in ipairs(nests:GetChildren()) do
-        -- 2 requêtes max par nid (au lieu de 5)
-        for i = 1, 2 do
-            safeFireRemote(FeedRemote, nest)
-            task.wait(0.3 + math.random() * 0.4)  -- Délai aléatoire
-        end
-        task.wait(1.5 + math.random() * 2)  -- Pause entre les nids
     end
 end
  
--- Scan de bosses
-local function scanBosses()
-    if not config.farmBosses then
-        activeBosses = {}
-        return
+local function doHatching()
+    if not config.autoHatch or not HatchRemote then return end
+    for _ = 1, 5 do
+        task.spawn(function() pcall(HatchRemote.FireServer, HatchRemote) end)
     end
+end
+ 
+local function doNests()
+    if not config.autoNests or not FeedRemote then return end
+    local nests = updateNests()
+    if nests then
+        for _, nest in ipairs(nests:GetChildren()) do
+            for _ = 1, 5 do
+                task.spawn(function() pcall(FeedRemote.FireServer, FeedRemote, nest) end)
+            end
+        end
+    end
+end
+ 
+-- Scan des boss
+local function scanBosses()
+    if not config.farmBosses then activeBosses = {}; return end
     local new = {}
     for _, name in ipairs(bossList) do
         if bossEnabled[name] then
@@ -299,9 +261,7 @@ local function scanBosses()
                 local enemies = zone:FindFirstChild("Enemies")
                 if enemies then
                     local enemy = enemies:FindFirstChild(name)
-                    if enemy and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        table.insert(new, enemy)
-                    end
+                    if enemy then table.insert(new, enemy) end
                 end
             end
         end
@@ -309,7 +269,7 @@ local function scanBosses()
     activeBosses = new
 end
  
--- Sacrifício
+-- Sacrifice
 local function sacrificePet(petName)
     if SacrificeRemote then
         local success = pcall(function() SacrificeRemote:InvokeServer("SacrificeWell", petName) end)
@@ -321,7 +281,7 @@ local function sacrificePet(petName)
     end
 end
  
--- Remover animação
+-- Remove animation
 local function removeHatchAnimation()
     local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("HatchAnimationEvent")
     if ev then ev:Destroy() end
@@ -338,27 +298,25 @@ end
  
 local function mainLoop()
     while active do
-        local startTime = os.clock()
+        local now = os.clock()
         for _, task in ipairs(tasks) do
-            if os.clock() >= task.nextTime then
-                local success, err = pcall(task.func)
-                if not success then
-                    warn("Erreur tâche :", err)
-                end
-                task.nextTime = os.clock() + task.interval
+            if now >= task.nextTime then
+                local s, e = pcall(task.func)
+                if not s then warn("Task error:", e) end
+                task.nextTime = now + task.interval
             end
         end
-        task.wait(0.05)  -- Réduit la charge CPU
+        task.wait(0.05)
     end
 end
  
--- Iniciar farm
+-- Commencer le farm
 local function start()
     if active then return end
     active = true
     tasks = {}
  
-    -- Pré-carregar zonas
+    -- Pré-charger les zones
     if ZonesRF then
         pcall(ZonesRF.InvokeServer, ZonesRF, "RequestZoneMap", "Zone12.1")
         pcall(ZonesRF.InvokeServer, ZonesRF, "RequestZoneMap", "SummerEventZone")
@@ -453,29 +411,14 @@ mainTab:CreateLabel("developed by Atomic and Player")
 mainTab:CreateLabel("yt: Yonix76")
 mainTab:CreateLabel("discord: Flo_RPMX")
  
--- Speed Tab (com eggDelay até 0.001)
+-- Speed Tab (mettre egg delay a 0.001)
 local speedTab = win:CreateTab("Speed")
 speedTab:CreateSection("Delays")
 speedTab:CreateSlider({ Name = "Boss Attack Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = config.bossAttackDelay, Callback = function(v) config.bossAttackDelay = v end })
 speedTab:CreateSlider({ Name = "Enemy Cycle Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = config.enemyDelay, Callback = function(v) config.enemyDelay = v end })
 speedTab:CreateSlider({ Name = "Food Cycle Delay", Range = {0.1, 3}, Increment = 0.1, CurrentValue = config.foodDelay, Callback = function(v) config.foodDelay = v end })
-speedTab:CreateSlider({
-    Name = "Eggs Cycle Delay",
-    Range = {0.001, 0.5},  -- Plage optimale pour éviter les bans tout en restant efficace
-    Increment = 0.001,     -- Précision fine pour un réglage optimal
-    CurrentValue = config.eggDelay,
-    Callback = function(v)
-        config.eggDelay = v
-        -- Optionnel : Ajoute une notification pour confirmer le changement
-        Rayfield:Notify({
-            Title = "Info",
-            Content = string.format("Délai des œufs mis à jour : %.3fs", v),
-            Duration = 1
-        })
-    end
-})
-
-
+speedTab:CreateSlider({ Name = "Eggs Cycle Delay", Range = {0.001, 0.5}, Increment = 0.001, CurrentValue = config.eggDelay, Callback = function(v) config.eggDelay = v end })
+ 
 -- Enemies Tab
 local enemiesTab = win:CreateTab("Enemies")
 enemiesTab:CreateSection("Enemy Farming")
