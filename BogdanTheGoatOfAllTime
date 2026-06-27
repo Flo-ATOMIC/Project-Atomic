@@ -25,7 +25,7 @@ local zoneList = {
     "Boss1", "Boss2", "Boss4",
     "SummerEventZone", "WinterEventZone", "Zone12.1", "ElementEventZone1",
     "Zone2", "Zone5", "Zone10", "Zone12",
-    "Zone2B1", "Zone5B1", "Zone10B1", "Zone12B1", "Zone12B3", "Zone12B2",
+    "Zone2B1", "Zone5B1", "Zone8B1", "Zone10B1", "Zone12B1", "Zone12B3", "Zone12B2",
     "SummerEventZoneB1", "WinterEventZoneB1", "ElementEventZoneB1"
 }
 for _, z in ipairs(zoneList) do
@@ -72,13 +72,13 @@ end
  
 -- Zone des boss
 local bossZoneMap = {
-    Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Tiki Monster"] = "Zone10B1",
+    Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1" ["Tiki Monster"] = "Zone10B1",
     ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
     ["The Ethereal Everia"] = "Zone12B2", ["Hornet Boss"] = "SummerEventZoneB1",
     ["The Ice Serpent"] = "WinterEventZoneB1", ["Great Sphinx"] = "ElementEventZoneB1",
 }
 local bossList = {
-    "Naga", "Lava Monster", "Tiki Monster", "The Frozen Ancient", "The Big 100M",
+    "Naga", "Lava Monster", "Ghost Pirate", "Tiki Monster", "The Frozen Ancient", "The Big 100M",
     "The Ethereal Everia", "Hornet Boss", "The Ice Serpent", "Great Sphinx"
 }
 local bossEnabled = {}
@@ -368,7 +368,7 @@ local win = Rayfield:CreateWindow({
     LoadingTitle = "Pet Swarm Sim",
     LoadingSubtitle = "Complete Edition",
     ConfigurationSaving = { Enabled = true, FolderName = "gkhub", FileName = "Config" },
-    Theme = "Dark"
+    Theme = "Light"
 })
  
 -- Main Tab
