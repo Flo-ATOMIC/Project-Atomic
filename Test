@@ -368,12 +368,48 @@ local win = Rayfield:CreateWindow({
     LoadingTitle = "Pet Swarm Sim",
     LoadingSubtitle = "Complete Edition",
     ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "Config" },
-    Theme = Fond : Color3.fromRGB(8, 8, 20)
-Secondaire : Color3.fromRGB(18, 18, 45)
-Accent : Color3.fromRGB(130, 90, 255)
-Accent secondaire : Color3.fromRGB(0, 220, 255)
-Texte : Color3.fromRGB(240, 240, 255)
-})
+    Theme = {
+        TextColor = Color3.fromRGB(245, 245, 255),
+
+    Background = Color3.fromRGB(10, 10, 25),
+    Topbar = Color3.fromRGB(18, 18, 45),
+
+    Shadow = Color3.fromRGB(0, 0, 0),
+
+    NotificationBackground = Color3.fromRGB(18, 18, 45),
+    NotificationActionsBackground = Color3.fromRGB(25, 25, 60),
+
+    TabBackground = Color3.fromRGB(15, 15, 35),
+    TabStroke = Color3.fromRGB(90, 90, 160),
+    TabBackgroundSelected = Color3.fromRGB(40, 30, 90),
+    TabTextColor = Color3.fromRGB(255, 255, 255),
+    SelectedTabTextColor = Color3.fromRGB(170, 120, 255),
+
+    ElementBackground = Color3.fromRGB(22, 22, 50),
+    ElementBackgroundHover = Color3.fromRGB(35, 35, 70),
+    SecondaryElementBackground = Color3.fromRGB(30, 30, 65),
+    ElementStroke = Color3.fromRGB(100, 80, 180),
+    SecondaryElementStroke = Color3.fromRGB(120, 100, 200),
+
+    SliderBackground = Color3.fromRGB(60, 60, 100),
+    SliderProgress = Color3.fromRGB(120, 90, 255),
+    SliderStroke = Color3.fromRGB(150, 120, 255),
+
+    ToggleBackground = Color3.fromRGB(45, 45, 70),
+    ToggleEnabled = Color3.fromRGB(120, 90, 255),
+    ToggleDisabled = Color3.fromRGB(70, 70, 90),
+    ToggleEnabledStroke = Color3.fromRGB(170, 130, 255),
+    ToggleDisabledStroke = Color3.fromRGB(90, 90, 110),
+    ToggleEnabledOuterStroke = Color3.fromRGB(200, 170, 255),
+    ToggleDisabledOuterStroke = Color3.fromRGB(120, 120, 140),
+
+    DropdownSelected = Color3.fromRGB(30, 30, 70),
+    DropdownUnselected = Color3.fromRGB(20, 20, 50),
+
+    InputBackground = Color3.fromRGB(20, 20, 45),
+    InputStroke = Color3.fromRGB(120, 90, 255),
+    PlaceholderColor = Color3.fromRGB(170, 170, 200)
+},
  
 -- Main Tab
 local mainTab = win:CreateTab("Main")
