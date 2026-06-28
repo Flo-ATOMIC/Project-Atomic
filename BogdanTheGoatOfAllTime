@@ -72,7 +72,7 @@ end
  
 -- Zone des boss
 local bossZoneMap = {
-    Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1" ["Tiki Monster"] = "Zone10B1",
+    Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1", ["Tiki Monster"] = "Zone10B1",
     ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
     ["The Ethereal Everia"] = "Zone12B2", ["Hornet Boss"] = "SummerEventZoneB1",
     ["The Ice Serpent"] = "WinterEventZoneB1", ["Great Sphinx"] = "ElementEventZoneB1",
@@ -367,7 +367,7 @@ local win = Rayfield:CreateWindow({
     Name = "Project-Atomic",
     LoadingTitle = "Pet Swarm Sim",
     LoadingSubtitle = "Complete Edition",
-    ConfigurationSaving = { Enabled = true, FolderName = "gkhub", FileName = "Config" },
+    ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "Config" },
     Theme = "Light"
 })
  
