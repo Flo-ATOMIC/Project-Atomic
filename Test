@@ -417,7 +417,7 @@ local win = Rayfield:CreateWindow({
 
     -- Texte général
     TextColor = Color3.fromRGB(220, 220, 255),      -- Blanc légèrement bleuté
-},
+})
  
 -- Main Tab
 local mainTab = win:CreateTab("Main")
