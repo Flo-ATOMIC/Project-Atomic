@@ -91,6 +91,7 @@ local enemyZones = {
     { name = "Sphinx (Evil Eagle)", zone = "ElementEventZone1", enemy = "Evil Eagle" },
     { name = "Cursed Mummy", zone = "Zone2", enemy = "Cursed Mummy" },
     { name = "Crazy Unicorn", zone = "Zone5", enemy = "Crazy Unicorn" },
+    { name = "Dark Planet", zone = "Zone9", enemy = "Dark Planet" },
     { name = "Terror Tree", zone = "Zone10", enemy = "Terror Tree" },
     { name = "Draco's Guard", zone = "Zone12", enemy = "Draco's Guard" },
     { name = "Possessed Slime", zone = "Zone12.1", enemy = "Possessed Slime" },
@@ -138,7 +139,7 @@ local eggData = {
     { name = "Tiki Island Egg", zone = "11" },
     { name = "Draco Egg", zone = "34" },
     { name = "Crystal Egg", zone = "12.1" },
-    { name = "Octopus Egg", zone = "30" },
+    { name = "Octopus Egg", zone = "29" },
     { name = "Forest Egg", zone = "1" },
     { name = "Frozen Egg", zone = "3" },
     { name = "Magma Egg", zone = "7" },
@@ -286,6 +287,12 @@ local function removeHatchAnimation()
     local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("HatchAnimationEvent")
     if ev then ev:Destroy() end
 end
+
+--Remove coins
+local function removeCoinsAnimation()
+    local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("DataUpdater")
+    if ev then ev:Destroy() end
+end
  
 -- Sistema de tarefas (loop principal)
 local active = false
@@ -407,7 +414,7 @@ task.spawn(function()
 end)
  
 mainTab:CreateSection("Credits")
-mainTab:CreateLabel("developed by Atomic and Player")
+mainTab:CreateLabel("developed by Flo_RPMX and Player")
 mainTab:CreateLabel("yt: Yonix76")
 mainTab:CreateLabel("discord: Flo_RPMX")
  
@@ -434,15 +441,18 @@ enemiesTab:CreateToggle({ Name = "Cursed Mummy", CurrentValue = enemyEnabled[4],
  
 enemiesTab:CreateSection("Sky")
 enemiesTab:CreateToggle({ Name = "Crazy Unicorn", CurrentValue = enemyEnabled[5], Callback = function(v) enemyEnabled[5] = v end })
+
+enemiesTab:CreateSection("Sky")
+enemiesTab:CreateToggle({ Name = "Dark Planet", CurrentValue = enemyEnabled[6], Callback = function(v) enemyEnabled[6] = v end })
  
 enemiesTab:CreateSection("Tiki")
-enemiesTab:CreateToggle({ Name = "Terror Tree", CurrentValue = enemyEnabled[6], Callback = function(v) enemyEnabled[6] = v end })
+enemiesTab:CreateToggle({ Name = "Terror Tree", CurrentValue = enemyEnabled[7], Callback = function(v) enemyEnabled[7] = v end })
  
 enemiesTab:CreateSection("Draco")
-enemiesTab:CreateToggle({ Name = "Draco's Guard", CurrentValue = enemyEnabled[7], Callback = function(v) enemyEnabled[7] = v end })
+enemiesTab:CreateToggle({ Name = "Draco's Guard", CurrentValue = enemyEnabled[8], Callback = function(v) enemyEnabled[8] = v end })
  
 enemiesTab:CreateSection("Crystal Island")
-enemiesTab:CreateToggle({ Name = "Possessed Slime", CurrentValue = enemyEnabled[8], Callback = function(v) enemyEnabled[8] = v end })
+enemiesTab:CreateToggle({ Name = "Possessed Slime", CurrentValue = enemyEnabled[9], Callback = function(v) enemyEnabled[9] = v end })
  
 -- Food Tab
 local foodTab = win:CreateTab("Food")
@@ -469,6 +479,7 @@ eggTab:CreateToggle({ Name = "Auto Plant", CurrentValue = config.autoPlant, Call
 eggTab:CreateToggle({ Name = "Auto Hatch", CurrentValue = config.autoHatch, Callback = function(v) config.autoHatch = v end })
 eggTab:CreateToggle({ Name = "Auto Nests", CurrentValue = config.autoNests, Callback = function(v) config.autoNests = v end })
 eggTab:CreateButton({ Name = "Remove Hatch Animation", Callback = removeHatchAnimation })
+eggTab:CreateButton({ Name = "Remove Coins Animation", Callback = removeCoinsAnimation })
  
 eggTab:CreateSection("Select Eggs")
 for _, egg in ipairs(eggData) do
