@@ -368,7 +368,7 @@ local win = Rayfield:CreateWindow({
     LoadingTitle = "Pet Swarm Sim",
     LoadingSubtitle = "Complete Edition",
     ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "Config" },
-    Theme = "Amber Glow"
+    Theme = "Green"
 })
  
 -- Main Tab
