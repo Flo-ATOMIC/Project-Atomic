@@ -368,7 +368,7 @@ local win = Rayfield:CreateWindow({
     LoadingTitle = "Pet Swarm Sim",
     LoadingSubtitle = "Complete Edition",
     ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "Config" },
-    Theme = "
+    Theme = 
     -- Couleurs principales (noir profond + bleu/violacé spatial)
     Background = Color3.fromRGB(5, 5, 20),          -- Fond noir/bleu nuit
     Topbar = Color3.fromRGB(10, 10, 40),           -- Barre du haut
