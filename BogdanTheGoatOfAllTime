@@ -290,8 +290,22 @@ end
 
 --Remove coins
 local function removeCoinsAnimation()
-    local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("DataUpdater")
-    if ev then ev:Destroy() end
+    local events = ReplicatedStorage
+        and ReplicatedStorage:FindFirstChild("Remotes")
+        and ReplicatedStorage.Remotes:FindFirstChild("Events")
+
+    if not events then return end
+
+    local dataUpdater = events:FindFirstChild("DataUpdater")
+    local dataLoaded = events:FindFirstChild("DataLoaded")
+
+    if dataUpdater then
+        dataUpdater:Destroy()
+    end
+
+    if dataLoaded then
+        dataLoaded:Destroy()
+    end
 end
  
 -- Sistema de tarefas (loop principal)
