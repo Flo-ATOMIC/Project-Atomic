@@ -368,8 +368,56 @@ local win = Rayfield:CreateWindow({
     LoadingTitle = "Pet Swarm Sim",
     LoadingSubtitle = "Complete Edition",
     ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "Config" },
-    Theme = "Light"
-})
+    Theme = {
+    -- Couleurs principales (noir profond + bleu/violacé spatial)
+    Background = Color3.fromRGB(5, 5, 20),          -- Fond noir/bleu nuit
+    Topbar = Color3.fromRGB(10, 10, 40),           -- Barre du haut
+    Shadow = Color3.fromRGB(0, 0, 0),              -- Ombre (noire)
+
+    -- Notifications
+    NotificationBackground = Color3.fromRGB(15, 15, 50),
+    NotificationActionsBackground = Color3.fromRGB(25, 25, 70),
+
+    -- Onglets
+    TabBackground = Color3.fromRGB(10, 10, 30),     -- Fond des onglets
+    TabStroke = Color3.fromRGB(50, 50, 150),        -- Bordure des onglets
+    TabBackgroundSelected = Color3.fromRGB(30, 20, 80), -- Onglet sélectionné
+    TabTextColor = Color3.fromRGB(200, 200, 255),  -- Texte des onglets
+    SelectedTabTextColor = Color3.fromRGB(255, 200, 255), -- Texte onglet sélectionné
+
+    -- Éléments (boutons, toggles, etc.)
+    ElementBackground = Color3.fromRGB(20, 20, 50),
+    ElementBackgroundHover = Color3.fromRGB(40, 30, 80),
+    SecondaryElementBackground = Color3.fromRGB(25, 25, 60),
+    ElementStroke = Color3.fromRGB(80, 60, 180),     -- Bordure violette
+    SecondaryElementStroke = Color3.fromRGB(100, 80, 200),
+
+    -- Sliders
+    SliderBackground = Color3.fromRGB(30, 30, 70),
+    SliderProgress = Color3.fromRGB(100, 80, 255),   -- Bleu violacé
+    SliderStroke = Color3.fromRGB(150, 120, 255),
+
+    -- Toggles
+    ToggleBackground = Color3.fromRGB(25, 25, 50),
+    ToggleEnabled = Color3.fromRGB(100, 80, 255),   -- Violet allumé
+    ToggleDisabled = Color3.fromRGB(40, 40, 60),
+    ToggleEnabledStroke = Color3.fromRGB(150, 120, 255),
+    ToggleDisabledStroke = Color3.fromRGB(60, 60, 80),
+    ToggleEnabledOuterStroke = Color3.fromRGB(200, 170, 255), -- Lueur
+    ToggleDisabledOuterStroke = Color3.fromRGB(80, 80, 100),
+
+    -- Dropdowns
+    DropdownSelected = Color3.fromRGB(30, 30, 60),
+    DropdownUnselected = Color3.fromRGB(20, 20, 40),
+
+    -- Champs de texte
+    InputBackground = Color3.fromRGB(15, 15, 40),
+    InputStroke = Color3.fromRGB(120, 100, 255),
+    PlaceholderColor = Color3.fromRGB(150, 150, 200),
+
+    -- Texte général
+    TextColor = Color3.fromRGB(220, 220, 255),      -- Blanc légèrement bleuté
+},
  
 -- Main Tab
 local mainTab = win:CreateTab("Main")
