@@ -289,35 +289,6 @@ for _, obj in ipairs(workspace:GetDescendants()) do
 		obj:Destroy()
 	end
 end
-
--- Supprime les effets visuels dans Lighting
-local Lighting = game:GetService("Lighting")
-
-for _, effect in ipairs(Lighting:GetChildren()) do
-	if effect:IsA("BlurEffect")
-	or effect:IsA("BloomEffect")
-	or effect:IsA("ColorCorrectionEffect")
-	or effect:IsA("SunRaysEffect")
-	or effect:IsA("DepthOfFieldEffect")
-	or effect:IsA("Atmosphere")
-	or effect:IsA("Sky") then
-		effect:Destroy()
-	end
-end
-
--- Supprime les particules et autres effets
-for _, obj in ipairs(game:GetDescendants()) do
-	if obj:IsA("ParticleEmitter")
-	or obj:IsA("Trail")
-	or obj:IsA("Beam")
-	or obj:IsA("Smoke")
-	or obj:IsA("Fire")
-	or obj:IsA("Sparkles") then
-		obj:Destroy()
-	end
-end
-
-print("Optimisation terminée !")
  
 -- Remove animation
 local function removeHatchAnimation()
