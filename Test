@@ -282,47 +282,42 @@ local function sacrificePet(petName)
     end
 end
 
-local Lighting = game:GetService("Lighting")
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-
 -- Function to Optimize the Game for FPS Boost
 local function optimizeGame()
-    -- Remove textures from all parts
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Texture") or obj:IsA("Decal") then
-            obj:Destroy()
-        elseif obj:IsA("BasePart") then
-            obj.Material = Enum.Material.SmoothPlastic
-            obj.Color = Color3.new(0.5, 0.5, 0.5) -- Baseplate gray color
-        end
-    end
-
-    -- Remove Lighting Effects and Make Sky Black
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 9e9
-    Lighting.Brightness = 0
-    Lighting.TimeOfDay = "00:00:00"
-    if Lighting:FindFirstChildOfClass("Sky") then
-        Lighting:FindFirstChildOfClass("Sky"):Destroy()
-    end
-
-    -- Remove Player Clothing
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr.Character then
-            for _, obj in pairs(plr.Character:GetChildren()) do
-                if obj:IsA("Shirt") or obj:IsA("Pants") or obj:IsA("Accessory") then
-                    obj:Destroy()
-                end
-            end
-        end
-    end
-
-    -- Lower Graphics on Mobile
-    settings().Rendering.QualityLevel = Enum.QualityLevel.Level1
+for _, obj in ipairs(workspace:GetDescendants()) do
+	if obj:IsA("MeshPart") then
+		obj:Destroy()
+	end
 end
 
-optimizeGame()
+-- Supprime les effets visuels dans Lighting
+local Lighting = game:GetService("Lighting")
+
+for _, effect in ipairs(Lighting:GetChildren()) do
+	if effect:IsA("BlurEffect")
+	or effect:IsA("BloomEffect")
+	or effect:IsA("ColorCorrectionEffect")
+	or effect:IsA("SunRaysEffect")
+	or effect:IsA("DepthOfFieldEffect")
+	or effect:IsA("Atmosphere")
+	or effect:IsA("Sky") then
+		effect:Destroy()
+	end
+end
+
+-- Supprime les particules et autres effets
+for _, obj in ipairs(game:GetDescendants()) do
+	if obj:IsA("ParticleEmitter")
+	or obj:IsA("Trail")
+	or obj:IsA("Beam")
+	or obj:IsA("Smoke")
+	or obj:IsA("Fire")
+	or obj:IsA("Sparkles") then
+		obj:Destroy()
+	end
+end
+
+print("Optimisation terminée !")
  
 -- Remove animation
 local function removeHatchAnimation()
