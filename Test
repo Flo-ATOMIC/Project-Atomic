@@ -281,6 +281,48 @@ local function sacrificePet(petName)
         end
     end
 end
+
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Function to Optimize the Game for FPS Boost
+local function optimizeGame()
+    -- Remove textures from all parts
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Texture") or obj:IsA("Decal") then
+            obj:Destroy()
+        elseif obj:IsA("BasePart") then
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Color = Color3.new(0.5, 0.5, 0.5) -- Baseplate gray color
+        end
+    end
+
+    -- Remove Lighting Effects and Make Sky Black
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 9e9
+    Lighting.Brightness = 0
+    Lighting.TimeOfDay = "00:00:00"
+    if Lighting:FindFirstChildOfClass("Sky") then
+        Lighting:FindFirstChildOfClass("Sky"):Destroy()
+    end
+
+    -- Remove Player Clothing
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr.Character then
+            for _, obj in pairs(plr.Character:GetChildren()) do
+                if obj:IsA("Shirt") or obj:IsA("Pants") or obj:IsA("Accessory") then
+                    obj:Destroy()
+                end
+            end
+        end
+    end
+
+    -- Lower Graphics on Mobile
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Level1
+end
+
+optimizeGame()
  
 -- Remove animation
 local function removeHatchAnimation()
@@ -397,6 +439,7 @@ local mainTab = win:CreateTab("Main")
 mainTab:CreateSection("Control")
 mainTab:CreateButton({ Name = "Start Farming", Callback = start })
 mainTab:CreateButton({ Name = "Stop Farming", Callback = stop })
+mainTab:CreateButton({ Name = "Reduce Lag", Callback = optimizeGame })
  
 mainTab:CreateSection("Status")
 local statusLabel = mainTab:CreateLabel("Status: Stopped")
