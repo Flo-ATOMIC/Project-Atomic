@@ -1,3 +1,4 @@
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -282,6 +283,12 @@ local function sacrificePet(petName)
     end
 end
  
+-- Remove animation
+local function removeHatchAnimation()
+    local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("HatchAnimationEvent")
+    if ev then ev:Destroy() end
+end
+
 --Remove coins
 local function removeCoinsAnimation()
     local events = ReplicatedStorage
@@ -292,7 +299,6 @@ local function removeCoinsAnimation()
 
     local dataUpdater = events:FindFirstChild("DataUpdater")
     local dataLoaded = events:FindFirstChild("DataLoaded")
-    local dataLoaded = events:FindFirstChild("HatchAnimationEvent")
 
     if dataUpdater then
         dataUpdater:Destroy()
@@ -300,11 +306,6 @@ local function removeCoinsAnimation()
 
     if dataLoaded then
         dataLoaded:Destroy()
-    end
-end
-
-    if HatchAnimationEvent then
-        HatchAnimationEvent:Destroy()
     end
 end
  
