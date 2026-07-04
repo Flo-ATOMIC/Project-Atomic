@@ -1,0 +1,46 @@
+-- Attendre que le jeu et les services soient chargés
+repeat wait() until game:IsLoaded()
+
+-- Références aux services
+local players = game:GetService("Players")
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local localPlayer = players.LocalPlayer
+
+-- Attendre que le TradeTemplate soit chargé
+local tradeTemplate = replicatedStorage:WaitForChild("SharedModules"):WaitForChild("Game"):WaitForChild("TradeUtils"):WaitForChild("TradingData"):WaitForChild("Trade"):WaitForChild("TradeTemplate")
+
+-- Références aux Offers et ReadyValues
+local offer1 = tradeTemplate:WaitForChild("Offer1")
+local offer2 = tradeTemplate:WaitForChild("Offer2")
+local ready1 = tradeTemplate:WaitForChild("Ready1")
+local ready2 = tradeTemplate:WaitForChild("Ready2")
+
+-- Fonction pour simuler un clic sur READY
+local function simulateReadyClick()
+    -- On suppose que le joueur local est le joueur 1 (Flo_S4CR)
+    if localPlayer.Name == "Flo_S4CR" then
+        -- Supprimer le contenu de Offer2
+        for _, child in ipairs(offer2:GetChildren()) do
+            if child:IsA("ImageLabel") or child:IsA("Frame") then
+                child:Destroy()
+            end
+        end
+        -- Cocher Ready2
+        ready2.Value = true
+        print("Ready2 coché et Offer2 vidé !")
+    else
+        -- Sinon, c'est le joueur 2
+        for _, child in ipairs(offer1:GetChildren()) do
+            if child:IsA("ImageLabel") or child:IsA("Frame") then
+                child:Destroy()
+            end
+        end
+        -- Cocher Ready1
+        ready1.Value = true
+        print("Ready1 coché et Offer1 vidé !")
+    end
+end
+
+-- Exécuter la fonction après un délai (pour laisser le temps au jeu de charger)
+wait(5)
+simulateReadyClick()
