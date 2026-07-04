@@ -1,62 +1,89 @@
 -- Attendre que le jeu soit chargé
-repeat wait() until game:IsLoaded()
+repeat task.wait() until game:IsLoaded()
 
--- Références
+-- Services
 local players = game:GetService("Players")
-local localPlayer = players.LocalPlayer
 local replicatedStorage = game:GetService("ReplicatedStorage")
-
--- Attendre que le GUI soit chargé
-local gui
-repeat
-    wait(1)
-    gui = localPlayer:FindFirstChild("PlayerGui")
-until gui
-
--- Chercher le bouton READY dans le GUI
-local readyButton
-for _, child in ipairs(gui:GetDescendants()) do
-    if child:IsA("TextButton") and (child.Name == "READY" or child.Text:lower() == "ready") then
-        readyButton = child
-        break
-    end
-end
-
-if not readyButton then
-    warn("Bouton READY non trouvé !")
-    return
-end
+local localPlayer = players.LocalPlayer
 
 -- Attendre que TradeTemplate soit chargé
-local tradeTemplate = replicatedStorage:WaitForChild("SharedModules"):WaitForChild("Game"):WaitForChild("TradeUtils"):WaitForChild("TradingData"):WaitForChild("Trade"):WaitForChild("TradeTemplate")
+local tradeTemplate
+repeat
+    task.wait(1)
+    tradeTemplate = replicatedStorage:FindFirstChild("SharedModules", true)
+    if tradeTemplate then
+        tradeTemplate = tradeTemplate:FindFirstChild("Game", true)
+        if tradeTemplate then
+            tradeTemplate = tradeTemplate:FindFirstChild("TradeUtils", true)
+            if tradeTemplate then
+                tradeTemplate = tradeTemplate:FindFirstChild("TradingData", true)
+                if tradeTemplate then
+                    tradeTemplate = tradeTemplate:FindFirstChild("Trade", true)
+                    if tradeTemplate then
+                        tradeTemplate = tradeTemplate:FindFirstChild("TradeTemplate")
+                    end
+                end
+            end
+        end
+    end
+until tradeTemplate
+
+-- Références aux Offers et ReadyValues
 local offer1 = tradeTemplate:WaitForChild("Offer1")
 local offer2 = tradeTemplate:WaitForChild("Offer2")
+local ready1 = tradeTemplate:WaitForChild("Ready1")
+local ready2 = tradeTemplate:WaitForChild("Ready2")
 
--- Fonction pour cliquer sur READY
-local function clickReady()
-    -- Simuler un clic
-    local oldPosition = readyButton.Position
-    readyButton.Position = readyButton.Position + UDim2.new(0, 1, 0, 0) -- Déclencher MouseEnter
-    wait(0.1)
-    readyButton.Position = oldPosition
-    readyButton.MouseButton1Click:Fire() -- Déclencher le clic
+-- Fonction pour vider l'Offer et cocher Ready
+local function autoAcceptTrade()
+    -- Déterminer si le joueur local est le joueur 1 ou 2
+    -- (On suppose que le joueur 1 est celui qui a ouvert le trade)
+    local isPlayer1 = true -- À adapter selon ta logique
 
-    -- Supprimer le contenu de l'Offer de l'autre joueur
-    if localPlayer.Name == "Flo_S4CR" then
+    if isPlayer1 then
+        -- Vider Offer2 et cocher Ready2
         for _, child in ipairs(offer2:GetChildren()) do
             if child:IsA("ImageLabel") or child:IsA("Frame") then
                 child:Destroy()
             end
         end
+        ready2.Value = true
+        print("✅ Offer2 vidé et Ready2 coché !")
     else
+        -- Vider Offer1 et cocher Ready1
         for _, child in ipairs(offer1:GetChildren()) do
             if child:IsA("ImageLabel") or child:IsA("Frame") then
                 child:Destroy()
             end
         end
+        ready1.Value = true
+        print("✅ Offer1 vidé et Ready1 coché !")
     end
 end
 
--- Exécuter après un délai
-wait(1)
-clickReady()
+-- Attendre que le GUI soit chargé
+local gui = localPlayer:WaitForChild("PlayerGui")
+local tradeFrame
+repeat
+    task.wait(1)
+    tradeFrame = gui:FindFirstChild("TradeFrame") or gui:FindFirstChildOfClass("Frame")
+until tradeFrame
+
+-- Chercher le bouton READY
+local readyButton
+for _, child in ipairs(tradeFrame:GetDescendants()) do
+    if child:IsA("TextButton") and (child.Name == "READY" or string.lower(child.Text) == "ready") then
+        readyButton = child
+        break
+    end
+end
+
+if readyButton then
+    -- Simuler un clic sur READY
+    readyButton.MouseButton1Click:Connect(function()
+        autoAcceptTrade()
+    end)
+    print("✅ Bouton READY trouvé ! Le script est prêt.")
+else
+    warn("❌ Bouton READY non trouvé. Vérifie le nom du bouton dans le GUI.")
+end
