@@ -1,41 +1,41 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local localPlayer = players.LocalPlayer
+local localPlayer = Players.LocalPlayer
 
--- Attendre que TradeTemplate soit chargé
-local tradeTemplate
-repeat
-    task.wait(1)
-    tradeTemplate = replicatedStorage:FindFirstChild("SharedModules", true)
-    if tradeTemplate then
-        tradeTemplate = tradeTemplate:FindFirstChild("Game", true)
-        if tradeTemplate then
-            tradeTemplate = tradeTemplate:FindFirstChild("TradeUtils", true)
-            if tradeTemplate then
-                tradeTemplate = tradeTemplate:FindFirstChild("TradingData", true)
-                if tradeTemplate then
-                    tradeTemplate = tradeTemplate:FindFirstChild("Trade", true)
-                    if tradeTemplate then
-                        tradeTemplate = tradeTemplate:FindFirstChild("TradeTemplate")
-                    end
-                end
-            end
+-- Variables globales
+local isScriptActive = false
+local isPlayer1 = false
+local tradeTemplate = nil
+local offer1, offer2, ready1, ready2 = nil, nil, nil, nil
+
+-- Fonction pour trouver TradeTemplate
+local function findTradeTemplate()
+    for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
+        if child.Name == "TradeTemplate" then
+            return child
         end
     end
-until tradeTemplate
+    return nil
+end
 
--- Références aux Offers et ReadyValues
-local offer1 = tradeTemplate:WaitForChild("Offer1")
-local offer2 = tradeTemplate:WaitForChild("Offer2")
-local ready1 = tradeTemplate:WaitForChild("Ready1")
-local ready2 = tradeTemplate:WaitForChild("Ready2")
+-- Fonction pour trouver les Offers et Ready
+local function findTradeElements()
+    if not tradeTemplate then return false end
 
--- Fonction pour vider l'Offer et cocher Ready
-local function autoAcceptTrade()
-    -- Déterminer si le joueur local est le joueur 1 ou 2
-    -- (On suppose que le joueur 1 est celui qui a ouvert le trade)
-    local isPlayer1 = true -- À adapter selon ta logique
+    offer1 = tradeTemplate:FindFirstChild("Offer1")
+    offer2 = tradeTemplate:FindFirstChild("Offer2")
+    ready1 = tradeTemplate:FindFirstChild("Ready1")
+    ready2 = tradeTemplate:FindFirstChild("Ready2")
+
+    return offer1 and offer2 and ready1 and ready2
+end
+
+-- Fonction pour vider l'offre et cocher Ready
+local function clearOfferAndAccept()
+    if not isScriptActive then return end
 
     if isPlayer1 then
         -- Vider Offer2 et cocher Ready2
@@ -58,29 +58,117 @@ local function autoAcceptTrade()
     end
 end
 
--- Attendre que le GUI soit chargé
-local gui = localPlayer:WaitForChild("PlayerGui")
-local tradeFrame
-repeat
-    task.wait(1)
-    tradeFrame = gui:FindFirstChild("TradeFrame") or gui:FindFirstChildOfClass("Frame")
-until tradeFrame
+-- Fonction pour surveiller les Ready
+local function monitorReadyValues()
+    if not (ready1 and ready2) then return end
 
--- Chercher le bouton READY
-local readyButton
-for _, child in ipairs(tradeFrame:GetDescendants()) do
-    if child:IsA("TextButton") and (child.Name == "READY" or string.lower(child.Text) == "ready") then
-        readyButton = child
-        break
-    end
-end
-
-if readyButton then
-    -- Simuler un clic sur READY
-    readyButton.MouseButton1Click:Connect(function()
-        autoAcceptTrade()
+    ready1.Changed:Connect(function()
+        if ready1.Value and not isPlayer1 then
+            clearOfferAndAccept()
+        end
     end)
-    print("✅ Bouton READY trouvé ! Le script est prêt.")
-else
-    warn("❌ Bouton READY non trouvé. Vérifie le nom du bouton dans le GUI.")
+
+    ready2.Changed:Connect(function()
+        if ready2.Value and isPlayer1 then
+            clearOfferAndAccept()
+        end
+    end)
 end
+
+-- Fonction pour démarrer le script
+local function startScript()
+    isScriptActive = true
+
+    -- Attendre que TradeTemplate soit chargé
+    repeat
+        task.wait(1)
+        tradeTemplate = findTradeTemplate()
+    until tradeTemplate or not isScriptActive
+
+    if not tradeTemplate then return end
+
+    -- Attendre que les Offers et Ready soient disponibles
+    repeat
+        task.wait(1)
+    until findTradeElements() or not isScriptActive
+
+    if not findTradeElements() then return end
+
+    -- Déterminer si le joueur local est Player1
+    -- (À adapter selon la logique de ton jeu)
+    isPlayer1 = (localPlayer.Name == tradeTemplate.Parent.Name)
+
+    -- Surveiller les Ready
+    monitorReadyValues()
+
+    print("✅ Script activé et en mode détection !")
+end
+
+-- Fonction pour arrêter le script
+local function stopScript()
+    isScriptActive = false
+    print("❌ Script désactivé.")
+end
+
+-- Créer l'interface Rayfield
+local Window = Rayfield:CreateWindow({
+    Name = "Auto Trade Accept",
+    LoadingTitle = "Chargement...",
+    LoadingSubtitle = "par Florent Flo_RPMX",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "FlorentGoku1234",
+        FileName = "AutoTradeConfig"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "none",
+        RememberJoins = true
+    },
+    KeySystem = false,
+})
+
+-- Onglet principal
+local MainTab = Window:CreateTab("Auto Trade", nil)
+local MainSection = MainTab:CreateSection("Contrôle du script")
+
+-- Bouton pour activer/désactiver
+local ToggleButton = MainTab:CreateButton({
+    Name = "Activer/Désactiver le script",
+    Callback = function()
+        if isScriptActive then
+            stopScript()
+            ToggleButton:Set("Désactivé")
+        else
+            startScript()
+            ToggleButton:Set("Activé")
+        end
+    end,
+})
+
+-- Onglet de statut
+local StatusTab = Window:CreateTab("Statut", nil)
+local StatusSection = StatusTab:CreateSection("État du script")
+
+local StatusLabel = StatusTab:CreateLabel({
+    Name = "Statut : Inactif",
+    Text = "Statut : Inactif"
+})
+
+-- Mettre à jour le statut
+spawn(function
+    while true do
+        if isScriptActive then
+            StatusLabel:Set("Statut : ✅ Actif (Détection en cours)")
+        else
+            StatusLabel:Set("Statut : ❌ Inactif")
+        end
+        task.wait(1)
+    end
+end)
+
+-- Démarrer automatiquement au lancement
+startScript()
+ToggleButton:Set("Activé")
+
+print("✅ Script chargé avec Rayfield !")
