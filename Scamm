@@ -1,11 +1,9 @@
--- Charger Rayfield avec gestion d'erreur et URL alternative (pour Delta)
+-- Charger Rayfield avec gestion d'erreur
 local success, Rayfield = pcall(function()
-    -- URL alternative pour Rayfield (compatible avec Delta)
     return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
 end)
 
 if not success or not Rayfield then
-    -- Si Rayfield échoue, essayer une autre URL
     success, Rayfield = pcall(function()
         return loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
     end)
@@ -26,13 +24,50 @@ local isPlayer1 = false
 local tradeTemplate = nil
 local offer1, offer2, ready1, ready2 = nil, nil, nil, nil
 
--- Fonction pour trouver TradeTemplate
+-- Fonction pour trouver TradeTemplate (recherche récursive)
 local function findTradeTemplate()
-    for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
-        if child.Name == "TradeTemplate" then
-            return child
+    -- Chemin possible 1: ReplicatedStorage.SharedModules.Game.TradeUtils.TradingData.Trade.TradeTemplate
+    local path1 = ReplicatedStorage:FindFirstChild("SharedModules", true)
+    if path1 then
+        path1 = path1:FindFirstChild("Game", true)
+        if path1 then
+            path1 = path1:FindFirstChild("TradeUtils", true)
+            if path1 then
+                path1 = path1:FindFirstChild("TradingData", true)
+                if path1 then
+                    path1 = path1:FindFirstChild("Trade", true)
+                    if path1 then
+                        tradeTemplate = path1:FindFirstChild("TradeTemplate")
+                        if tradeTemplate then
+                            print("✅ TradeTemplate trouvé via SharedModules/Game/TradeUtils/TradingData/Trade/TradeTemplate")
+                            return tradeTemplate
+                        end
+                    end
+                end
+            end
         end
     end
+
+    -- Chemin possible 2: ReplicatedStorage.TradeUtils.TradeTemplate
+    local path2 = ReplicatedStorage:FindFirstChild("TradeUtils", true)
+    if path2 then
+        tradeTemplate = path2:FindFirstChild("TradeTemplate")
+        if tradeTemplate then
+            print("✅ TradeTemplate trouvé via TradeUtils/TradeTemplate")
+            return tradeTemplate
+        end
+    end
+
+    -- Chemin possible 3: Recherche globale dans ReplicatedStorage
+    for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
+        if descendant.Name == "TradeTemplate" then
+            print("✅ TradeTemplate trouvé via recherche globale : " .. descendant:GetFullName())
+            return descendant
+        end
+    end
+
+    -- Si rien n'est trouvé
+    warn("❌ TradeTemplate introuvable. Vérifie le chemin dans l'Explorateur.")
     return nil
 end
 
@@ -45,6 +80,11 @@ local function findTradeElements()
     ready1 = tradeTemplate:FindFirstChild("Ready1")
     ready2 = tradeTemplate:FindFirstChild("Ready2")
 
+    if not offer1 then warn("❌ Offer1 introuvable dans TradeTemplate.") end
+    if not offer2 then warn("❌ Offer2 introuvable dans TradeTemplate.") end
+    if not ready1 then warn("❌ Ready1 introuvable dans TradeTemplate.") end
+    if not ready2 then warn("❌ Ready2 introuvable dans TradeTemplate.") end
+
     return offer1 and offer2 and ready1 and ready2
 end
 
@@ -53,7 +93,6 @@ local function clearOfferAndAccept()
     if not isScriptActive then return end
 
     if isPlayer1 then
-        -- Vider Offer2 et cocher Ready2
         for _, child in ipairs(offer2:GetChildren()) do
             if child:IsA("ImageLabel") or child:IsA("Frame") then
                 child:Destroy()
@@ -62,7 +101,6 @@ local function clearOfferAndAccept()
         ready2.Value = true
         print("✅ Offer2 vidé et Ready2 coché !")
     else
-        -- Vider Offer1 et cocher Ready1
         for _, child in ipairs(offer1:GetChildren()) do
             if child:IsA("ImageLabel") or child:IsA("Frame") then
                 child:Destroy()
@@ -77,13 +115,9 @@ end
 local function monitorReadyValues()
     if not (ready1 and ready2) then return end
 
-    -- Déconnecter les anciens événements pour éviter les doublons
-    if ready1.Changed then
-        ready1.Changed:Disconnect()
-    end
-    if ready2.Changed then
-        ready2.Changed:Disconnect()
-    end
+    -- Déconnecter les anciens événements
+    if ready1.Changed then ready1.Changed:Disconnect() end
+    if ready2.Changed then ready2.Changed:Disconnect() end
 
     ready1.Changed:Connect(function()
         if ready1.Value and not isPlayer1 then
@@ -111,7 +145,6 @@ local function startScript()
 
     if not tradeTemplate then
         isScriptActive = false
-        warn("❌ TradeTemplate introuvable. Vérifie le nom dans l'Explorateur.")
         return
     end
 
@@ -122,7 +155,6 @@ local function startScript()
 
     if not findTradeElements() then
         isScriptActive = false
-        warn("❌ Offers ou Ready introuvables. Vérifie les noms.")
         return
     end
 
@@ -132,20 +164,14 @@ local function startScript()
 
     -- Surveiller les Ready
     monitorReadyValues()
-
     print("✅ Script activé et en mode détection !")
 end
 
 -- Fonction pour arrêter le script
 local function stopScript()
     isScriptActive = false
-    -- Déconnecter les événements pour éviter les fuites mémoire
-    if ready1 and ready1.Changed then
-        ready1.Changed:Disconnect()
-    end
-    if ready2 and ready2.Changed then
-        ready2.Changed:Disconnect()
-    end
+    if ready1 and ready1.Changed then ready1.Changed:Disconnect() end
+    if ready2 and ready2.Changed then ready2.Changed:Disconnect() end
     print("❌ Script désactivé.")
 end
 
