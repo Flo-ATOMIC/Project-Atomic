@@ -1,10 +1,7 @@
 lua
 Copier
 
--- Charger Rayfield avec gestion d'erreur
-local success, Rayfield = pcall(function()
-    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-end)
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
 
 if not success or not Rayfield then
     warn("❌ Échec du chargement de Rayfield. Vérifie l'URL ou ta connexion.")
