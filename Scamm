@@ -1,4 +1,4 @@
--- Essayer plusieurs URLs pour Rayfield
+-- Charger Rayfield avec gestion d'erreur
 local Rayfield
 local urls = {
     "https://raw.githubusercontent.com/shlexware/Rayfield/main/source",
@@ -22,7 +22,7 @@ if not Rayfield then
     return
 end
 
--- Le reste du script (inchangé)
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local localPlayer = Players.LocalPlayer
@@ -32,6 +32,7 @@ local isScriptActive = false
 local isPlayer1 = false
 local tradeTemplate = nil
 local offer1, offer2, ready1, ready2 = nil, nil, nil, nil
+local ready1Connection, ready2Connection = nil, nil
 
 -- Fonction pour trouver TradeTemplate
 local function findTradeTemplate()
@@ -66,7 +67,8 @@ end
 local function clearOfferAndAccept()
     if not isScriptActive then return end
 
-    if isPlayer1 then
+    -- Vérifier que les objets existent
+    if isPlayer1 and offer2 and ready2 then
         for _, child in ipairs(offer2:GetChildren()) do
             if child:IsA("ImageLabel") or child:IsA("Frame") then
                 child:Destroy()
@@ -74,7 +76,7 @@ local function clearOfferAndAccept()
         end
         ready2.Value = true
         print("✅ Offer2 vidé et Ready2 coché !")
-    else
+    elseif not isPlayer1 and offer1 and ready1 then
         for _, child in ipairs(offer1:GetChildren()) do
             if child:IsA("ImageLabel") or child:IsA("Frame") then
                 child:Destroy()
@@ -82,27 +84,30 @@ local function clearOfferAndAccept()
         end
         ready1.Value = true
         print("✅ Offer1 vidé et Ready1 coché !")
+    else
+        warn("❌ Impossible de vider l'offre : objets manquants.")
     end
 end
 
 -- Fonction pour surveiller les Ready
 local function monitorReadyValues()
-    if not (ready1 and ready2) then return end
+    -- Déconnecter les anciens événements
+    if ready1Connection then ready1Connection:Disconnect() end
+    if ready2Connection then ready2Connection:Disconnect() end
 
-    if ready1.Changed then ready1.Changed:Disconnect() end
-    if ready2.Changed then ready2.Changed:Disconnect() end
+    if ready1 and ready2 then
+        ready1Connection = ready1.Changed:Connect(function()
+            if ready1.Value and not isPlayer1 then
+                clearOfferAndAccept()
+            end
+        end)
 
-    ready1.Changed:Connect(function()
-        if ready1.Value and not isPlayer1 then
-            clearOfferAndAccept()
-        end
-    end)
-
-    ready2.Changed:Connect(function()
-        if ready2.Value and isPlayer1 then
-            clearOfferAndAccept()
-        end
-    end)
+        ready2Connection = ready2.Changed:Connect(function()
+            if ready2.Value and isPlayer1 then
+                clearOfferAndAccept()
+            end
+        end)
+    end
 end
 
 -- Fonction pour démarrer le script
@@ -110,6 +115,7 @@ local function startScript()
     if isScriptActive then return end
     isScriptActive = true
 
+    -- Attendre que TradeTemplate soit chargé
     repeat
         task.wait(1)
         tradeTemplate = findTradeTemplate()
@@ -120,6 +126,7 @@ local function startScript()
         return
     end
 
+    -- Attendre que les Offers et Ready soient disponibles
     repeat
         task.wait(1)
     until findTradeElements() or not isScriptActive
@@ -129,7 +136,10 @@ local function startScript()
         return
     end
 
+    -- Déterminer si le joueur local est Player1
     isPlayer1 = (localPlayer.Name == tradeTemplate.Parent.Name)
+
+    -- Surveiller les Ready
     monitorReadyValues()
     print("✅ Script activé et en mode détection !")
 end
@@ -137,12 +147,12 @@ end
 -- Fonction pour arrêter le script
 local function stopScript()
     isScriptActive = false
-    if ready1 and ready1.Changed then ready1.Changed:Disconnect() end
-    if ready2 and ready2.Changed then ready2.Changed:Disconnect() end
+    if ready1Connection then ready1Connection:Disconnect() end
+    if ready2Connection then ready2Connection:Disconnect() end
     print("❌ Script désactivé.")
 end
 
--- Interface Rayfield
+-- Créer l'interface Rayfield
 local Window = Rayfield:CreateWindow({
     Name = "Auto Trade Accept",
     LoadingTitle = "Chargement...",
@@ -162,16 +172,19 @@ local Window = Rayfield:CreateWindow({
 local MainTab = Window:CreateTab("Auto Trade", nil)
 local MainSection = MainTab:CreateSection("Contrôle du script")
 
+-- Bouton pour activer/désactiver (avec gestion d'erreur)
 local ToggleButton = MainTab:CreateButton({
     Name = "Activer/Désactiver le script",
     Callback = function()
-        if isScriptActive then
-            stopScript()
-            ToggleButton:Set("Activer le script")
-        else
-            startScript()
-            ToggleButton:Set("Désactiver le script")
-        end
+        pcall(function()
+            if isScriptActive then
+                stopScript()
+                ToggleButton:Set("Activer le script")
+            else
+                startScript()
+                ToggleButton:Set("Désactiver le script")
+            end
+        end)
     end,
 })
 
@@ -184,13 +197,20 @@ local StatusLabel = StatusTab:CreateLabel({
     Text = "Statut : ❌ Inactif"
 })
 
+-- Mettre à jour le statut (avec gestion d'erreur)
 coroutine.wrap(function()
     while true do
-        StatusLabel:Set("Statut : " .. (isScriptActive and "✅ Actif" or "❌ Inactif"))
+        pcall(function()
+            StatusLabel:Set("Statut : " .. (isScriptActive and "✅ Actif" or "❌ Inactif"))
+        end)
         task.wait(0.5)
     end
 end)()
 
--- Démarrer automatiquement
-startScript()
-ToggleButton:Set("Désactiver le script")
+-- Démarrer automatiquement au lancement
+pcall(startScript)
+if isScriptActive then
+    ToggleButton:Set("Désactiver le script")
+end
+
+print("✅ Script chargé avec Rayfield !")
