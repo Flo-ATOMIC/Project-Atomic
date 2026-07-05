@@ -1,9 +1,6 @@
--- Attendre que le jeu soit chargé
-repeat task.wait() until game:IsLoaded()
-
--- Services
-local players = game:GetService("Players")
-local replicatedStorage = game:GetService("ReplicatedStorage")
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local localPlayer = players.LocalPlayer
 
 -- Attendre que TradeTemplate soit chargé
