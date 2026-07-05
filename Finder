@@ -1,0 +1,19 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Recherche globale de TradeTemplate
+for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
+    if descendant.Name == "TradeTemplate" then
+        print("✅ TradeTemplate trouvé : " .. descendant:GetFullName())
+
+        -- Vérifie les enfants
+        local offer1 = descendant:FindFirstChild("Offer1")
+        local offer2 = descendant:FindFirstChild("Offer2")
+        local ready1 = descendant:FindFirstChild("Ready1")
+        local ready2 = descendant:FindFirstChild("Ready2")
+
+        print("Offer1 :", offer1 and "✅ Trouvé" or "❌ Introuvable")
+        print("Offer2 :", offer2 and "✅ Trouvé" or "❌ Introuvable")
+        print("Ready1 :", ready1 and "✅ Trouvé" or "❌ Introuvable")
+        print("Ready2 :", ready2 and "✅ Trouvé" or "❌ Introuvable")
+    end
+end
