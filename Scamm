@@ -4,13 +4,8 @@ local success, Rayfield = pcall(function()
 end)
 
 if not success or not Rayfield then
-    success, Rayfield = pcall(function()
-        return loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
-    end)
-    if not success or not Rayfield then
-        warn("❌ Échec du chargement de Rayfield. Vérifie ton exécutant ou ta connexion.")
-        return
-    end
+    warn("❌ Échec du chargement de Rayfield. Vérifie ton exécutant ou ta connexion.")
+    return
 end
 
 -- Services
@@ -24,20 +19,20 @@ local isPlayer1 = false
 local tradeTemplate = nil
 local offer1, offer2, ready1, ready2 = nil, nil, nil, nil
 
--- Fonction pour trouver TradeTemplate (recherche récursive)
+-- Fonction pour trouver TradeTemplate (chemin personnalisé)
 local function findTradeTemplate()
-    -- Chemin possible 1: ReplicatedStorage.SharedModules.Game.TradeUtils.TradingData.Trade.TradeTemplate
-    local path1 = ReplicatedStorage:FindFirstChild("SharedModules", true)
-    if path1 then
-        path1 = path1:FindFirstChild("Game", true)
-        if path1 then
-            path1 = path1:FindFirstChild("TradeUtils", true)
-            if path1 then
-                path1 = path1:FindFirstChild("TradingData", true)
-                if path1 then
-                    path1 = path1:FindFirstChild("Trade", true)
-                    if path1 then
-                        tradeTemplate = path1:FindFirstChild("TradeTemplate")
+    -- Chemin 1: ReplicatedStorage.SharedModules.Game.TradeUtils.TradingData.Trade.TradeTemplate
+    local path = ReplicatedStorage:FindFirstChild("SharedModules", true)
+    if path then
+        path = path:FindFirstChild("Game", true)
+        if path then
+            path = path:FindFirstChild("TradeUtils", true)
+            if path then
+                path = path:FindFirstChild("TradingData", true)
+                if path then
+                    path = path:FindFirstChild("Trade", true)
+                    if path then
+                        tradeTemplate = path:FindFirstChild("TradeTemplate")
                         if tradeTemplate then
                             print("✅ TradeTemplate trouvé via SharedModules/Game/TradeUtils/TradingData/Trade/TradeTemplate")
                             return tradeTemplate
@@ -48,17 +43,17 @@ local function findTradeTemplate()
         end
     end
 
-    -- Chemin possible 2: ReplicatedStorage.TradeUtils.TradeTemplate
-    local path2 = ReplicatedStorage:FindFirstChild("TradeUtils", true)
-    if path2 then
-        tradeTemplate = path2:FindFirstChild("TradeTemplate")
+    -- Chemin 2: ReplicatedStorage.TradeUtils.TradeTemplate
+    path = ReplicatedStorage:FindFirstChild("TradeUtils", true)
+    if path then
+        tradeTemplate = path:FindFirstChild("TradeTemplate")
         if tradeTemplate then
             print("✅ TradeTemplate trouvé via TradeUtils/TradeTemplate")
             return tradeTemplate
         end
     end
 
-    -- Chemin possible 3: Recherche globale dans ReplicatedStorage
+    -- Chemin 3: Recherche globale dans ReplicatedStorage
     for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
         if descendant.Name == "TradeTemplate" then
             print("✅ TradeTemplate trouvé via recherche globale : " .. descendant:GetFullName())
@@ -66,8 +61,7 @@ local function findTradeTemplate()
         end
     end
 
-    -- Si rien n'est trouvé
-    warn("❌ TradeTemplate introuvable. Vérifie le chemin dans l'Explorateur.")
+    warn("❌ TradeTemplate introuvable.")
     return nil
 end
 
@@ -75,15 +69,15 @@ end
 local function findTradeElements()
     if not tradeTemplate then return false end
 
-    offer1 = tradeTemplate:FindFirstChild("Offer1")
-    offer2 = tradeTemplate:FindFirstChild("Offer2")
-    ready1 = tradeTemplate:FindFirstChild("Ready1")
-    ready2 = tradeTemplate:FindFirstChild("Ready2")
+    offer1 = tradeTemplate:FindFirstChild("Offer1") or tradeTemplate:FindFirstChild("Player1Offer")
+    offer2 = tradeTemplate:FindFirstChild("Offer2") or tradeTemplate:FindFirstChild("Player2Offer")
+    ready1 = tradeTemplate:FindFirstChild("Ready1") or tradeTemplate:FindFirstChild("Player1Ready")
+    ready2 = tradeTemplate:FindFirstChild("Ready2") or tradeTemplate:FindFirstChild("Player2Ready")
 
-    if not offer1 then warn("❌ Offer1 introuvable dans TradeTemplate.") end
-    if not offer2 then warn("❌ Offer2 introuvable dans TradeTemplate.") end
-    if not ready1 then warn("❌ Ready1 introuvable dans TradeTemplate.") end
-    if not ready2 then warn("❌ Ready2 introuvable dans TradeTemplate.") end
+    if not offer1 then warn("❌ Offer1 introuvable.") end
+    if not offer2 then warn("❌ Offer2 introuvable.") end
+    if not ready1 then warn("❌ Ready1 introuvable.") end
+    if not ready2 then warn("❌ Ready2 introuvable.") end
 
     return offer1 and offer2 and ready1 and ready2
 end
@@ -234,4 +228,4 @@ end)()
 startScript()
 ToggleButton:Set("Désactiver le script")
 
-print("✅ Script chargé avec Rayfield pour Delta !")
+print("✅ Script chargé avec Rayfield !")
