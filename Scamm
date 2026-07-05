@@ -1,14 +1,28 @@
--- Charger Rayfield avec gestion d'erreur
-local success, Rayfield = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
-end)
+-- Essayer plusieurs URLs pour Rayfield
+local Rayfield
+local urls = {
+    "https://raw.githubusercontent.com/shlexware/Rayfield/main/source",
+    "https://sirius.menu/rayfield",
+    "https://cdn.jsdelivr.net/gh/shlexware/Rayfield@main/source"
+}
 
-if not success or not Rayfield then
-    warn("❌ Échec du chargement de Rayfield. Vérifie ton exécutant ou ta connexion.")
+for _, url in ipairs(urls) do
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    if success and result then
+        Rayfield = result
+        print("✅ Rayfield chargé depuis : " .. url)
+        break
+    end
+end
+
+if not Rayfield then
+    warn("❌ Échec du chargement de Rayfield. Toutes les URLs ont échoué.")
     return
 end
 
--- Services
+-- Le reste du script (inchangé)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local localPlayer = Players.LocalPlayer
@@ -19,48 +33,14 @@ local isPlayer1 = false
 local tradeTemplate = nil
 local offer1, offer2, ready1, ready2 = nil, nil, nil, nil
 
--- Fonction pour trouver TradeTemplate (chemin personnalisé)
+-- Fonction pour trouver TradeTemplate
 local function findTradeTemplate()
-    -- Chemin 1: ReplicatedStorage.SharedModules.Game.TradeUtils.TradingData.Trade.TradeTemplate
-    local path = ReplicatedStorage:FindFirstChild("SharedModules", true)
-    if path then
-        path = path:FindFirstChild("Game", true)
-        if path then
-            path = path:FindFirstChild("TradeUtils", true)
-            if path then
-                path = path:FindFirstChild("TradingData", true)
-                if path then
-                    path = path:FindFirstChild("Trade", true)
-                    if path then
-                        tradeTemplate = path:FindFirstChild("TradeTemplate")
-                        if tradeTemplate then
-                            print("✅ TradeTemplate trouvé via SharedModules/Game/TradeUtils/TradingData/Trade/TradeTemplate")
-                            return tradeTemplate
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    -- Chemin 2: ReplicatedStorage.TradeUtils.TradeTemplate
-    path = ReplicatedStorage:FindFirstChild("TradeUtils", true)
-    if path then
-        tradeTemplate = path:FindFirstChild("TradeTemplate")
-        if tradeTemplate then
-            print("✅ TradeTemplate trouvé via TradeUtils/TradeTemplate")
-            return tradeTemplate
-        end
-    end
-
-    -- Chemin 3: Recherche globale dans ReplicatedStorage
     for _, descendant in ipairs(ReplicatedStorage:GetDescendants()) do
         if descendant.Name == "TradeTemplate" then
-            print("✅ TradeTemplate trouvé via recherche globale : " .. descendant:GetFullName())
+            print("✅ TradeTemplate trouvé : " .. descendant:GetFullName())
             return descendant
         end
     end
-
     warn("❌ TradeTemplate introuvable.")
     return nil
 end
@@ -109,7 +89,6 @@ end
 local function monitorReadyValues()
     if not (ready1 and ready2) then return end
 
-    -- Déconnecter les anciens événements
     if ready1.Changed then ready1.Changed:Disconnect() end
     if ready2.Changed then ready2.Changed:Disconnect() end
 
@@ -131,7 +110,6 @@ local function startScript()
     if isScriptActive then return end
     isScriptActive = true
 
-    -- Attendre que TradeTemplate soit chargé
     repeat
         task.wait(1)
         tradeTemplate = findTradeTemplate()
@@ -142,7 +120,6 @@ local function startScript()
         return
     end
 
-    -- Attendre que les Offers et Ready soient disponibles
     repeat
         task.wait(1)
     until findTradeElements() or not isScriptActive
@@ -152,11 +129,7 @@ local function startScript()
         return
     end
 
-    -- Déterminer si le joueur local est Player1
-    -- (À adapter selon la logique de ton jeu)
     isPlayer1 = (localPlayer.Name == tradeTemplate.Parent.Name)
-
-    -- Surveiller les Ready
     monitorReadyValues()
     print("✅ Script activé et en mode détection !")
 end
@@ -169,7 +142,7 @@ local function stopScript()
     print("❌ Script désactivé.")
 end
 
--- Créer l'interface Rayfield
+-- Interface Rayfield
 local Window = Rayfield:CreateWindow({
     Name = "Auto Trade Accept",
     LoadingTitle = "Chargement...",
@@ -189,7 +162,6 @@ local Window = Rayfield:CreateWindow({
 local MainTab = Window:CreateTab("Auto Trade", nil)
 local MainSection = MainTab:CreateSection("Contrôle du script")
 
--- Bouton pour activer/désactiver
 local ToggleButton = MainTab:CreateButton({
     Name = "Activer/Désactiver le script",
     Callback = function()
@@ -212,20 +184,13 @@ local StatusLabel = StatusTab:CreateLabel({
     Text = "Statut : ❌ Inactif"
 })
 
--- Mettre à jour le statut
 coroutine.wrap(function()
     while true do
-        if isScriptActive then
-            StatusLabel:Set("Statut : ✅ Actif (Détection en cours)")
-        else
-            StatusLabel:Set("Statut : ❌ Inactif")
-        end
+        StatusLabel:Set("Statut : " .. (isScriptActive and "✅ Actif" or "❌ Inactif"))
         task.wait(0.5)
     end
 end)()
 
--- Démarrer automatiquement au lancement
+-- Démarrer automatiquement
 startScript()
 ToggleButton:Set("Désactiver le script")
-
-print("✅ Script chargé avec Rayfield !")
