@@ -1,11 +1,18 @@
-lua
-Copier
-
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+-- Charger Rayfield avec gestion d'erreur et URL alternative (pour Delta)
+local success, Rayfield = pcall(function()
+    -- URL alternative pour Rayfield (compatible avec Delta)
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
+end)
 
 if not success or not Rayfield then
-    warn("❌ Échec du chargement de Rayfield. Vérifie l'URL ou ta connexion.")
-    return
+    -- Si Rayfield échoue, essayer une autre URL
+    success, Rayfield = pcall(function()
+        return loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+    end)
+    if not success or not Rayfield then
+        warn("❌ Échec du chargement de Rayfield. Vérifie ton exécutant ou ta connexion.")
+        return
+    end
 end
 
 -- Services
@@ -70,6 +77,14 @@ end
 local function monitorReadyValues()
     if not (ready1 and ready2) then return end
 
+    -- Déconnecter les anciens événements pour éviter les doublons
+    if ready1.Changed then
+        ready1.Changed:Disconnect()
+    end
+    if ready2.Changed then
+        ready2.Changed:Disconnect()
+    end
+
     ready1.Changed:Connect(function()
         if ready1.Value and not isPlayer1 then
             clearOfferAndAccept()
@@ -96,6 +111,7 @@ local function startScript()
 
     if not tradeTemplate then
         isScriptActive = false
+        warn("❌ TradeTemplate introuvable. Vérifie le nom dans l'Explorateur.")
         return
     end
 
@@ -106,6 +122,7 @@ local function startScript()
 
     if not findTradeElements() then
         isScriptActive = false
+        warn("❌ Offers ou Ready introuvables. Vérifie les noms.")
         return
     end
 
@@ -122,6 +139,13 @@ end
 -- Fonction pour arrêter le script
 local function stopScript()
     isScriptActive = false
+    -- Déconnecter les événements pour éviter les fuites mémoire
+    if ready1 and ready1.Changed then
+        ready1.Changed:Disconnect()
+    end
+    if ready2 and ready2.Changed then
+        ready2.Changed:Disconnect()
+    end
     print("❌ Script désactivé.")
 end
 
@@ -184,6 +208,4 @@ end)()
 startScript()
 ToggleButton:Set("Désactiver le script")
 
-print("✅ Script chargé avec Rayfield !")
-
-print("✅ Script chargé avec Rayfield !")
+print("✅ Script chargé avec Rayfield pour Delta !")
