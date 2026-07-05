@@ -1,4 +1,15 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+lua
+Copier
+
+-- Charger Rayfield avec gestion d'erreur
+local success, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
+
+if not success or not Rayfield then
+    warn("❌ Échec du chargement de Rayfield. Vérifie l'URL ou ta connexion.")
+    return
+end
 
 -- Services
 local Players = game:GetService("Players")
@@ -77,6 +88,7 @@ end
 
 -- Fonction pour démarrer le script
 local function startScript()
+    if isScriptActive then return end
     isScriptActive = true
 
     -- Attendre que TradeTemplate soit chargé
@@ -85,14 +97,20 @@ local function startScript()
         tradeTemplate = findTradeTemplate()
     until tradeTemplate or not isScriptActive
 
-    if not tradeTemplate then return end
+    if not tradeTemplate then
+        isScriptActive = false
+        return
+    end
 
     -- Attendre que les Offers et Ready soient disponibles
     repeat
         task.wait(1)
     until findTradeElements() or not isScriptActive
 
-    if not findTradeElements() then return end
+    if not findTradeElements() then
+        isScriptActive = false
+        return
+    end
 
     -- Déterminer si le joueur local est Player1
     -- (À adapter selon la logique de ton jeu)
@@ -122,8 +140,6 @@ local Window = Rayfield:CreateWindow({
     },
     Discord = {
         Enabled = false,
-        Invite = "none",
-        RememberJoins = true
     },
     KeySystem = false,
 })
@@ -138,10 +154,10 @@ local ToggleButton = MainTab:CreateButton({
     Callback = function()
         if isScriptActive then
             stopScript()
-            ToggleButton:Set("Désactivé")
+            ToggleButton:Set("Activer le script")
         else
             startScript()
-            ToggleButton:Set("Activé")
+            ToggleButton:Set("Désactiver le script")
         end
     end,
 })
@@ -152,23 +168,25 @@ local StatusSection = StatusTab:CreateSection("État du script")
 
 local StatusLabel = StatusTab:CreateLabel({
     Name = "Statut : Inactif",
-    Text = "Statut : Inactif"
+    Text = "Statut : ❌ Inactif"
 })
 
 -- Mettre à jour le statut
-spawn(function
+coroutine.wrap(function()
     while true do
         if isScriptActive then
             StatusLabel:Set("Statut : ✅ Actif (Détection en cours)")
         else
             StatusLabel:Set("Statut : ❌ Inactif")
         end
-        task.wait(1)
+        task.wait(0.5)
     end
-end)
+end)()
 
 -- Démarrer automatiquement au lancement
 startScript()
-ToggleButton:Set("Activé")
+ToggleButton:Set("Désactiver le script")
+
+print("✅ Script chargé avec Rayfield !")
 
 print("✅ Script chargé avec Rayfield !")
