@@ -21,7 +21,7 @@ local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
 local zoneCache = {}
 local zoneList = {
     "SummerEvent1", "WinterEvent1", "EleEgg1", "6", "4", "15", "10", "27",
-    "30", "11", "34", "12.1", "1", "3", "7", "8", "12", "13", "14",
+    "30", "11", "34", "12.1", "1", "3", "7", "8", "9", "12", "13", "14",
     "Boss1", "Boss2", "Boss4",
     "SummerEventZone", "WinterEventZone", "Zone12.1", "ElementEventZone1",
     "Zone2", "Zone5", "Zone9", "Zone10", "Zone12",
@@ -521,6 +521,16 @@ sacrificeTab:CreateButton({ Name = "Walrus - Once", Callback = function() sacrif
 sacrificeTab:CreateSection("Sphinx Event")
 sacrificeTab:CreateButton({ Name = "Fennec Fox - Once", Callback = function() sacrificePet("Fennec Fox") end })
 sacrificeTab:CreateButton({ Name = "Mystic Camel - Once", Callback = function() sacrificePet("Mystic Camel") end })
+sacrificeTab:CreateSection("Sacrifice Area")
+sacrificeTab:CreateButton({ Name = "Pyro Shroom - Once", Callback = function() sacrificePet("Pyro Shroom") end })
+sacrificeTab:CreateButton({ Name = "King Cobra - Once", Callback = function() sacrificePet("King Cobra") end })
+sacrificeTab:CreateButton({ Name = "Royal Unicorn - Once", Callback = function() sacrificePet("Royal Unicorn") end })
+sacrificeTab:CreateButton({ Name = "Golden Octopus - Once", Callback = function() sacrificePet("Golden Octopus") end })
+sacrificeTab:CreateButton({ Name = "Sea Dragon - Once", Callback = function() sacrificePet("Sea Dragon") end })
+sacrificeTab:CreateButton({ Name = "Nebula Dragon - Once", Callback = function() sacrificePet("Nebula Dragon") end })
+sacrificeTab:CreateButton({ Name = "Void - Once", Callback = function() sacrificePet("Void") end })
+sacrificeTab:CreateSection("End Tower")
+sacrificeTab:CreateButton({ Name = "Ethereal End Dragon - Once", Callback = function() sacrificePet("Ethereal End Dragon") end })
 sacrificeTab:CreateSection("Crystal Island")
 sacrificeTab:CreateButton({ Name = "Orb - Once", Callback = function() sacrificePet("Orb") end })
  
