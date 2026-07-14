@@ -1,46 +1,37 @@
--- DEBUG: Find SharedModules and TradingUtils anywhere
+-- Debug: Show everything inside ReplicatedStorage (2 levels deep)
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local ServerStorage = game:GetService("ServerStorage")
+task.wait(2)  -- let the game load
 
-local function printHierarchy(parent, indent)
-    indent = indent or ""
-    for _, child in ipairs(parent:GetChildren()) do
-        print(indent .. child.Name .. " (" .. child.ClassName .. ")")
-        if #child:GetChildren() > 0 then
-            printHierarchy(child, indent .. "  ")
+local RS = game:GetService("ReplicatedStorage")
+
+print("═══════════════════════════════════════")
+print("🔍 CONTENTS OF REPLICATEDSTORAGE")
+print("═══════════════════════════════════════")
+
+-- List all top-level children
+for _, child in ipairs(RS:GetChildren()) do
+    print("📁 " .. child.Name .. " (" .. child.ClassName .. ")")
+    
+    -- If it's a folder or model, list its children (Level 2)
+    if child:IsA("Folder") or child:IsA("Model") then
+        for _, sub in ipairs(child:GetChildren()) do
+            print("   └─ " .. sub.Name .. " (" .. sub.ClassName .. ")")
+            
+            -- If we find "TradingUtils", highlight it
+            if string.lower(sub.Name) == "tradingutils" then
+                warn("✅ FOUND TradingUtils at: " .. child.Name .. "." .. sub.Name)
+            end
         end
+    end
+    
+    -- If the top-level child itself is SharedModules or TradingUtils
+    if string.lower(child.Name):find("shared") and string.lower(child.Name):find("module") then
+        warn("✅ FOUND SharedModules at top level: " .. child.Name)
+    end
+    if string.lower(child.Name):find("tradingutils") then
+        warn("✅ FOUND TradingUtils at top level: " .. child.Name)
     end
 end
 
--- Search for a specific name (case‑insensitive) and print its path
-local function findDeep(parent, target, path)
-    path = path or parent.Name
-    for _, child in ipairs(parent:GetChildren()) do
-        if string.lower(child.Name) == string.lower(target) then
-            warn("✅ FOUND " .. target .. " at: " .. path .. "." .. child.Name)
-        end
-        if #child:GetChildren() > 0 then
-            findDeep(child, target, path .. "." .. child.Name)
-        end
-    end
-end
-
-print("🔍 Scanning ReplicatedStorage...")
-findDeep(ReplicatedStorage, "SharedModules")
-findDeep(ReplicatedStorage, "TradingUtils")
-
-print("🔍 Scanning Workspace...")
-findDeep(Workspace, "SharedModules")
-findDeep(Workspace, "TradingUtils")
-
-print("🔍 Scanning ServerStorage...")
-findDeep(ServerStorage, "SharedModules")
-findDeep(ServerStorage, "TradingUtils")
-
--- Also print entire ReplicatedStorage structure (shortened)
-print("📁 Full ReplicatedStorage hierarchy:")
-printHierarchy(ReplicatedStorage)
-
-print("✅ Debug complete. Check Output for results.")
+print("═══════════════════════════════════════")
+print("✅ Debug complete. Check for ✅ or ❌ messages above.")
