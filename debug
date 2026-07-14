@@ -1,0 +1,13 @@
+local RS = game:GetService("ReplicatedStorage")
+local shared = RS:FindFirstChild("SharedModules")
+local gameF = shared:FindFirstChild("Game")
+local utils = gameF:FindFirstChild("TradingUtils")
+
+if utils then
+    local o1 = utils:FindFirstChild("Offer1")
+    local r2 = utils:FindFirstChild("Ready2")
+    local a2 = utils:FindFirstChild("Accept2")
+    if o1 then print("Offer1 is a: " .. o1.ClassName) end
+    if r2 then print("Ready2 is a: " .. r2.ClassName) end
+    if a2 then print("Accept2 is a: " .. a2.ClassName) end
+end
