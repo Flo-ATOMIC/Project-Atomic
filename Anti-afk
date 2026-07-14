@@ -1,19 +1,227 @@
-wait(0.5)local ba=Instance.new("ScreenGui")
-local ca=Instance.new("TextLabel")local da=Instance.new("Frame")
-local _b=Instance.new("TextLabel")local ab=Instance.new("TextLabel")ba.Parent=game.CoreGui
-ba.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;ca.Parent=ba;ca.Active=true
-ca.BackgroundColor3=Color3.new(0.176471,0.176471,0.176471)ca.Draggable=true
-ca.Position=UDim2.new(0.698610067,0,0.098096624,0)ca.Size=UDim2.new(0,370,0,52)
-ca.Font=Enum.Font.SourceSansSemibold;ca.Text="Anti AFK Script"ca.TextColor3=Color3.new(2,0,1)
-ca.TextSize=34;da.Parent=ca
-da.BackgroundColor3=Color3.new(0.196078,0.196078,0.196078)da.Position=UDim2.new(0,0,1.0192306,0)
-da.Size=UDim2.new(0,370,0,107)_b.Parent=da
-_b.BackgroundColor3=Color3.new(0.176471,0.176471,0.176471)_b.Position=UDim2.new(0,0,0.800455689,0)
-_b.Size=UDim2.new(0,370,0,21)_b.Font=Enum.Font.Arial;_b.Text="Made by procat"
-_b.TextColor3=Color3.new(2,0,1)_b.TextSize=20;ab.Parent=da
-ab.BackgroundColor3=Color3.new(0.176471,0.176471,0.176471)ab.Position=UDim2.new(0,0,0.158377,0)
-ab.Size=UDim2.new(0,370,0,44)ab.Font=Enum.Font.ArialBold;ab.Text="Status: Active"
-ab.TextColor3=Color3.new(2,0,1)ab.TextSize=20;local bb=game:service'VirtualUser'
-game:service'Players'.LocalPlayer.Idled:connect(function()
-bb:CaptureController()bb:ClickButton2(Vector2.new())
-ab.Text="Roblox Tried to kick you but procatdidnt let them kick you"wait(2)ab.Text="Status : Active"end)
+-- LocalScript: AutoWithdrawUI
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- ============================================
+-- 1. CREATE THE UI
+-- ============================================
+local function createUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AutoWithdrawUI"
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    -- Main Frame
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 120)
+    frame.Position = UDim2.new(0, 15, 0, 15)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    frame.BackgroundTransparency = 0.15
+    frame.BorderSizePixel = 0
+    frame.ClipsDescendants = true
+    frame.Parent = screenGui
+
+    -- Corner rounding
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    -- Title Label
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 28)
+    title.Position = UDim2.new(0, 0, 0, 4)
+    title.BackgroundTransparency = 1
+    title.Text = "🤖 Auto-Withdraw"
+    title.TextColor3 = Color3.fromRGB(220, 220, 255)
+    title.TextSize = 16
+    title.Font = Enum.Font.GothamBold
+    title.Parent = frame
+
+    -- Status Label (shows what the script is doing)
+    local status = Instance.new("TextLabel")
+    status.Size = UDim2.new(1, -20, 0, 24)
+    status.Position = UDim2.new(0, 10, 0, 36)
+    status.BackgroundTransparency = 1
+    status.Text = "⏳ Initializing..."
+    status.TextColor3 = Color3.fromRGB(200, 200, 200)
+    status.TextSize = 14
+    status.Font = Enum.Font.Gotham
+    status.TextXAlignment = Enum.TextXAlignment.Left
+    status.Parent = frame
+
+    -- Toggle Button
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(1, -20, 0, 32)
+    toggleBtn.Position = UDim2.new(0, 10, 0, 70)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.TextSize = 14
+    toggleBtn.Font = Enum.Font.Gotham
+    toggleBtn.Text = "▶ ENABLE"
+    toggleBtn.Parent = frame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = toggleBtn
+
+    return status, toggleBtn
+end
+
+local statusLabel, toggleButton = createUI()
+
+-- ============================================
+-- 2. SCRIPT LOGIC (auto-withdraw)
+-- ============================================
+
+-- Locate the Game folder
+local gameFolder = ReplicatedStorage:FindFirstChild("Game")
+if not gameFolder then
+    gameFolder = workspace:FindFirstChild("Game") -- fallback
+    if not gameFolder then
+        statusLabel.Text = "❌ Game folder not found!"
+        return
+    end
+end
+
+local tradingUtils = gameFolder:FindFirstChild("TradingUtils")
+if not tradingUtils then
+    statusLabel.Text = "❌ TradingUtils not found!"
+    return
+end
+
+-- Get the required objects
+local offer1 = tradingUtils:FindFirstChild("Offer1")      -- Folder
+local ready2 = tradingUtils:FindFirstChild("Ready2")      -- BoolValue
+local accept2 = tradingUtils:FindFirstChild("Accept2")    -- BoolValue
+local player1Val = tradingUtils:FindFirstChild("Player1") -- StringValue / ObjectValue
+
+if not offer1 or not ready2 or not accept2 then
+    statusLabel.Text = "❌ Missing Offer1/Ready2/Accept2"
+    return
+end
+
+-- ============================================
+-- 3. CORE FUNCTIONS
+-- ============================================
+
+local scriptEnabled = false   -- start disabled, user must toggle ON
+local hasWithdrawn = false    -- prevent multiple withdrawals
+
+local function updateUI(statusText, buttonText, btnColor)
+    statusLabel.Text = statusText
+    if buttonText then
+        toggleButton.Text = buttonText
+    end
+    if btnColor then
+        toggleButton.BackgroundColor3 = btnColor
+    end
+end
+
+-- Actually clear the Offer1 folder
+local function removeMyOffer()
+    if hasWithdrawn then return end
+    hasWithdrawn = true
+
+    -- Clear the folder
+    for _, child in ipairs(offer1:GetChildren()) do
+        child:Destroy()
+    end
+
+    updateUI("✅ Offer withdrawn! (P2 is ready & accepted)", "DISABLE", Color3.fromRGB(80, 80, 80))
+
+    -- OPTIONAL: Fire a Cancel RemoteEvent if it exists
+    -- local cancelEvent = tradingUtils:FindFirstChild("CancelTrade")
+    -- if cancelEvent and cancelEvent:IsA("RemoteEvent") then
+    --     cancelEvent:FireServer()
+    -- end
+end
+
+-- Check conditions and withdraw if possible
+local function checkAndWithdraw()
+    if not scriptEnabled then
+        updateUI("⏸ PAUSED (click ENABLE)", "▶ ENABLE", Color3.fromRGB(60, 60, 80))
+        return
+    end
+
+    if hasWithdrawn then
+        updateUI("✅ Already withdrawn.", "DISABLE", Color3.fromRGB(80, 80, 80))
+        return
+    end
+
+    -- 1. Verify we are Player 1
+    local isPlayer1 = false
+    if player1Val then
+        if player1Val:IsA("ObjectValue") and player1Val.Value == LocalPlayer then
+            isPlayer1 = true
+        elseif player1Val:IsA("StringValue") and player1Val.Value == LocalPlayer.Name then
+            isPlayer1 = true
+        elseif player1Val:IsA("StringValue") and player1Val.Value == tostring(LocalPlayer.UserId) then
+            isPlayer1 = true
+        end
+    end
+
+    if not isPlayer1 then
+        updateUI("⛔ You are NOT Player 1", "DISABLE", Color3.fromRGB(80, 40, 40))
+        return
+    end
+
+    -- 2. Check Player 2's status
+    local r2 = ready2.Value == true
+    local a2 = accept2.Value == true
+
+    if r2 and a2 then
+        updateUI("⚡ Player 2 READY & ACCEPTED! Withdrawing...", "⏳ WAIT", Color3.fromRGB(200, 150, 0))
+        task.wait(0.3) -- small visual delay so you see the change
+        removeMyOffer()
+    else
+        local statusMsg = "👀 Waiting for P2... "
+        if not r2 and not a2 then
+            statusMsg = statusMsg .. "(Ready: ❌ | Accept: ❌)"
+        elseif r2 and not a2 then
+            statusMsg = statusMsg .. "(Ready: ✅ | Accept: ❌)"
+        elseif not r2 and a2 then
+            statusMsg = statusMsg .. "(Ready: ❌ | Accept: ✅)" -- unlikely but handled
+        end
+        updateUI(statusMsg, "⏹ DISABLE", Color3.fromRGB(200, 60, 60))
+    end
+end
+
+-- ============================================
+-- 4. EVENT LISTENERS
+-- ============================================
+
+-- Listen for changes to Ready2 / Accept2
+local ready2Conn = ready2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
+local accept2Conn = accept2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
+
+-- ============================================
+-- 5. TOGGLE BUTTON
+-- ============================================
+
+toggleButton.MouseButton1Click:Connect(function()
+    scriptEnabled = not scriptEnabled
+
+    if scriptEnabled then
+        hasWithdrawn = false  -- reset so it can trigger again if re-enabled
+        updateUI("🟢 ENABLED – monitoring trade...", "⏹ DISABLE", Color3.fromRGB(200, 60, 60))
+        checkAndWithdraw()  -- run immediately after enabling
+    else
+        updateUI("🔴 DISABLED", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
+    end
+end)
+
+-- ============================================
+-- 6. INITIAL STARTUP
+-- ============================================
+
+-- Set initial UI state
+updateUI("🔴 DISABLED (press ENABLE)", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
+
+-- Run one check after a short delay (in case a trade is already open when the script loads)
+task.wait(1)
+if scriptEnabled then
+    checkAndWithdraw()
+end
+
+print("✅ Auto-Withdraw UI script loaded. Click the button to activate.")
