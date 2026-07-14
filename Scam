@@ -1,73 +1,46 @@
--- Simple Auto-Withdraw (exact path)
+-- DEBUG: Find SharedModules and TradingUtils anywhere
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = game:GetService("Players").LocalPlayer
+local Workspace = game:GetService("Workspace")
+local ServerStorage = game:GetService("ServerStorage")
 
--- Find path
-local shared = ReplicatedStorage:FindFirstChild("SharedModules")
-if not shared then error("SharedModules not found") end
-local gameFolder = shared:FindFirstChild("Game")
-if not gameFolder then error("Game not found") end
-local trading = gameFolder:FindFirstChild("TradingUtils")
-if not trading then error("TradingUtils not found") end
-
-local offer1 = trading:FindFirstChild("Offer1")
-local ready2 = trading:FindFirstChild("Ready2")
-local accept2 = trading:FindFirstChild("Accept2")
-local player1Val = trading:FindFirstChild("Player1")
-
--- Create UI (simple)
-local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 200, 0, 80)
-frame.Position = UDim2.new(0, 10, 0, 10)
-frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-
-local status = Instance.new("TextLabel", frame)
-status.Size = UDim2.new(1, 0, 1, -30)
-status.BackgroundTransparency = 1
-status.Text = "🔴 Disabled"
-status.TextColor3 = Color3.new(1,1,1)
-
-local btn = Instance.new("TextButton", frame)
-btn.Size = UDim2.new(1, 0, 0, 30)
-btn.Position = UDim2.new(0, 0, 1, -30)
-btn.Text = "Enable"
-btn.BackgroundColor3 = Color3.fromRGB(60,60,80)
-
-local enabled = false
-local withdrawn = false
-
-local function withdraw()
-    if withdrawn then return end
-    withdrawn = true
-    for _, child in pairs(offer1:GetChildren()) do child:Destroy() end
-    status.Text = "✅ Withdrawn!"
-end
-
-local function check()
-    if not enabled then return end
-    if withdrawn then status.Text = "✅ Done"; return end
-    if player1Val.Value ~= LocalPlayer then status.Text = "⛔ Not P1"; return end
-    if ready2.Value and accept2.Value then
-        status.Text = "⚡ Withdrawing..."
-        task.wait(0.3)
-        withdraw()
-    else
-        status.Text = "👀 Waiting for P2..."
+local function printHierarchy(parent, indent)
+    indent = indent or ""
+    for _, child in ipairs(parent:GetChildren()) do
+        print(indent .. child.Name .. " (" .. child.ClassName .. ")")
+        if #child:GetChildren() > 0 then
+            printHierarchy(child, indent .. "  ")
+        end
     end
 end
 
-ready2:GetPropertyChangedSignal("Value"):Connect(check)
-accept2:GetPropertyChangedSignal("Value"):Connect(check)
-
-btn.MouseButton1Click:Connect(function()
-    enabled = not enabled
-    btn.Text = enabled and "Disable" or "Enable"
-    if enabled then
-        withdrawn = false
-        status.Text = "🟢 Monitoring"
-        check()
-    else
-        status.Text = "🔴 Disabled"
+-- Search for a specific name (case‑insensitive) and print its path
+local function findDeep(parent, target, path)
+    path = path or parent.Name
+    for _, child in ipairs(parent:GetChildren()) do
+        if string.lower(child.Name) == string.lower(target) then
+            warn("✅ FOUND " .. target .. " at: " .. path .. "." .. child.Name)
+        end
+        if #child:GetChildren() > 0 then
+            findDeep(child, target, path .. "." .. child.Name)
+        end
     end
-end)
+end
+
+print("🔍 Scanning ReplicatedStorage...")
+findDeep(ReplicatedStorage, "SharedModules")
+findDeep(ReplicatedStorage, "TradingUtils")
+
+print("🔍 Scanning Workspace...")
+findDeep(Workspace, "SharedModules")
+findDeep(Workspace, "TradingUtils")
+
+print("🔍 Scanning ServerStorage...")
+findDeep(ServerStorage, "SharedModules")
+findDeep(ServerStorage, "TradingUtils")
+
+-- Also print entire ReplicatedStorage structure (shortened)
+print("📁 Full ReplicatedStorage hierarchy:")
+printHierarchy(ReplicatedStorage)
+
+print("✅ Debug complete. Check Output for results.")
