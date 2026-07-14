@@ -1,313 +1,73 @@
--- LocalScript: AutoWithdrawUI (Ultra Robust)
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+-- Simple Auto-Withdraw (exact path)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = game:GetService("Players").LocalPlayer
 
--- ============================================
--- 1. CREATE THE UI
--- ============================================
-local function createUI()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AutoWithdrawUI"
-    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- Find path
+local shared = ReplicatedStorage:FindFirstChild("SharedModules")
+if not shared then error("SharedModules not found") end
+local gameFolder = shared:FindFirstChild("Game")
+if not gameFolder then error("Game not found") end
+local trading = gameFolder:FindFirstChild("TradingUtils")
+if not trading then error("TradingUtils not found") end
 
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 240, 0, 160) -- slightly taller for debug text
-    frame.Position = UDim2.new(0, 15, 0, 15)
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    frame.BackgroundTransparency = 0.15
-    frame.BorderSizePixel = 0
-    frame.ClipsDescendants = true
-    frame.Parent = screenGui
+local offer1 = trading:FindFirstChild("Offer1")
+local ready2 = trading:FindFirstChild("Ready2")
+local accept2 = trading:FindFirstChild("Accept2")
+local player1Val = trading:FindFirstChild("Player1")
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = frame
+-- Create UI (simple)
+local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 200, 0, 80)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 28)
-    title.Position = UDim2.new(0, 0, 0, 4)
-    title.BackgroundTransparency = 1
-    title.Text = "🤖 Auto-Withdraw"
-    title.TextColor3 = Color3.fromRGB(220, 220, 255)
-    title.TextSize = 16
-    title.Font = Enum.Font.GothamBold
-    title.Parent = frame
+local status = Instance.new("TextLabel", frame)
+status.Size = UDim2.new(1, 0, 1, -30)
+status.BackgroundTransparency = 1
+status.Text = "🔴 Disabled"
+status.TextColor3 = Color3.new(1,1,1)
 
-    local status = Instance.new("TextLabel")
-    status.Size = UDim2.new(1, -20, 0, 50) -- more height for multi-line
-    status.Position = UDim2.new(0, 10, 0, 36)
-    status.BackgroundTransparency = 1
-    status.Text = "⏳ Initializing..."
-    status.TextColor3 = Color3.fromRGB(200, 200, 200)
-    status.TextSize = 13
-    status.Font = Enum.Font.Gotham
-    status.TextXAlignment = Enum.TextXAlignment.Left
-    status.TextWrapped = true
-    status.Parent = frame
+local btn = Instance.new("TextButton", frame)
+btn.Size = UDim2.new(1, 0, 0, 30)
+btn.Position = UDim2.new(0, 0, 1, -30)
+btn.Text = "Enable"
+btn.BackgroundColor3 = Color3.fromRGB(60,60,80)
 
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(1, -20, 0, 32)
-    toggleBtn.Position = UDim2.new(0, 10, 0, 105)
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleBtn.TextSize = 14
-    toggleBtn.Font = Enum.Font.Gotham
-    toggleBtn.Text = "▶ ENABLE"
-    toggleBtn.Parent = frame
+local enabled = false
+local withdrawn = false
 
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    btnCorner.Parent = toggleBtn
-
-    return status, toggleBtn
+local function withdraw()
+    if withdrawn then return end
+    withdrawn = true
+    for _, child in pairs(offer1:GetChildren()) do child:Destroy() end
+    status.Text = "✅ Withdrawn!"
 end
 
-local statusLabel, toggleButton = createUI()
-
--- ============================================
--- 2. ULTRA ROBUST PATH FINDER
--- ============================================
-
-local function updateUI(text, btnText, btnColor)
-    statusLabel.Text = text
-    if btnText then toggleButton.Text = btnText end
-    if btnColor then toggleButton.BackgroundColor3 = btnColor end
-end
-
--- Helper: find a child by name (case-insensitive, with multiple aliases)
-local function findFlexible(parent, possibleNames)
-    if not parent then return nil end
-    for _, child in ipairs(parent:GetChildren()) do
-        for _, name in ipairs(possibleNames) do
-            if string.lower(child.Name) == string.lower(name) then
-                return child
-            end
-        end
-    end
-    return nil
-end
-
--- Helper: find ANY child whose name contains a keyword
-local function findContains(parent, keyword)
-    if not parent then return nil end
-    local lowerKeyword = string.lower(keyword)
-    for _, child in ipairs(parent:GetChildren()) do
-        if string.find(string.lower(child.Name), lowerKeyword, 1, true) then
-            return child
-        end
-    end
-    return nil
-end
-
--- DEBUG: Print everything to Output
-local function debugPrintAll(parent, label)
-    warn("📁 " .. label .. " has these children:")
-    for _, child in ipairs(parent:GetChildren()) do
-        warn("   - " .. child.Name .. " (Type: " .. child.ClassName .. ")")
-    end
-end
-
--- ============================================
--- 3. FIND sharedmodule / sharedmodules
--- ============================================
-
-updateUI("🔍 Scanning for sharedmodule...", "⏳ WAIT", Color3.fromRGB(60, 60, 80))
-
--- List of possible names (common variations)
-local sharedNames = {
-    "sharedmodule",
-    "sharedmodules",
-    "SharedModule",
-    "SharedModules",
-    "SHAREDMODULE",
-    "SHAREDMODULES",
-    "modules",
-    "ModuleScripts"
-}
-
-local sharedModule = findFlexible(ReplicatedStorage, sharedNames)
-
--- If still not found, try searching for ANY folder with "shared" in the name
-if not sharedModule then
-    sharedModule = findContains(ReplicatedStorage, "shared")
-end
-
--- If STILL not found, print everything so the user can see
-if not sharedModule then
-    updateUI("❌ 'sharedmodule' not found! Check Output.", "⛔ ERROR", Color3.fromRGB(100, 0, 0))
-    debugPrintAll(ReplicatedStorage, "ReplicatedStorage")
-    warn("🔍 Could not find any 'shared' folder. Trying to find 'Game' directly...")
-    
-    -- LAST RESORT: Look for "Game" or "TradingUtils" directly in ReplicatedStorage
-    local gameFolder = findFlexible(ReplicatedStorage, {"Game", "game", "TradingUtils"})
-    if gameFolder then
-        updateUI("✅ Found 'Game' directly in ReplicatedStorage!", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
-        -- We'll handle this in the next step
-    else
-        return -- Stop script
-    end
-else
-    updateUI("✅ Found: " .. sharedModule.Name, "▶ ENABLE", Color3.fromRGB(60, 160, 60))
-    print("✅ Found shared module: " .. sharedModule.Name)
-end
-
--- ============================================
--- 4. FIND Game INSIDE sharedmodule (or directly)
--- ============================================
-
-local gameFolder
-
-if sharedModule then
-    -- Try to find "Game" inside the shared module
-    gameFolder = findFlexible(sharedModule, {"Game", "game", "GAME"})
-    if not gameFolder then
-        -- If not inside, maybe "Game" is a direct child of ReplicatedStorage?
-        gameFolder = findFlexible(ReplicatedStorage, {"Game", "game"})
-        if gameFolder then
-            updateUI("✅ Found 'Game' directly in ReplicatedStorage (not inside sharedmodule)", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
-        else
-            updateUI("❌ 'Game' folder not found anywhere!", "⛔ ERROR", Color3.fromRGB(100, 0, 0))
-            if sharedModule then debugPrintAll(sharedModule, sharedModule.Name) end
-            return
-        end
-    end
-else
-    -- If sharedModule was nil, try to find "Game" directly
-    gameFolder = findFlexible(ReplicatedStorage, {"Game", "game", "GAME"})
-    if not gameFolder then
-        updateUI("❌ 'Game' folder not found!", "⛔ ERROR", Color3.fromRGB(100, 0, 0))
-        debugPrintAll(ReplicatedStorage, "ReplicatedStorage")
-        return
-    end
-end
-
-print("✅ Found Game folder: " .. gameFolder.Name)
-
--- ============================================
--- 5. FIND TradingUtils INSIDE Game
--- ============================================
-
-local tradingUtils = findFlexible(gameFolder, {"TradingUtils", "Tradingutils", "tradingutils", "TradeUtils"})
-
-if not tradingUtils then
-    -- Maybe TradingUtils is actually called something else – search for any folder with "trade" in it
-    tradingUtils = findContains(gameFolder, "trade")
-end
-
-if not tradingUtils then
-    updateUI("❌ TradingUtils not found inside Game!", "⛔ ERROR", Color3.fromRGB(100, 0, 0))
-    debugPrintAll(gameFolder, gameFolder.Name)
-    return
-end
-
-print("✅ Found TradingUtils: " .. tradingUtils.Name)
-updateUI("✅ TradingUtils found!", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
-
--- ============================================
--- 6. GET THE REQUIRED OBJECTS
--- ============================================
-
-local offer1 = findFlexible(tradingUtils, {"Offer1", "offer1", "OFFER1"})
-local ready2 = findFlexible(tradingUtils, {"Ready2", "ready2", "READY2"})
-local accept2 = findFlexible(tradingUtils, {"Accept2", "accept2", "ACCEPT2"})
-local player1Val = findFlexible(tradingUtils, {"Player1", "player1", "PLAYER1"})
-
-if not offer1 or not ready2 or not accept2 then
-    updateUI("❌ Missing Offer1/Ready2/Accept2", "⛔ ERROR", Color3.fromRGB(100, 0, 0))
-    warn("❌ Missing objects in TradingUtils. Found these:")
-    for _, child in ipairs(tradingUtils:GetChildren()) do
-        warn("   - " .. child.Name)
-    end
-    return
-end
-
-updateUI("✅ All objects found! Ready.", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
-
--- ============================================
--- 7. CORE LOGIC (same as before)
--- ============================================
-
-local scriptEnabled = false
-local hasWithdrawn = false
-
-local function removeMyOffer()
-    if hasWithdrawn then return end
-    hasWithdrawn = true
-
-    for _, child in ipairs(offer1:GetChildren()) do
-        child:Destroy()
-    end
-
-    updateUI("✅ Offer withdrawn! (P2 ready & accepted)", "DISABLE", Color3.fromRGB(80, 80, 80))
-end
-
-local function checkAndWithdraw()
-    if not scriptEnabled then
-        updateUI("⏸ PAUSED (click ENABLE)", "▶ ENABLE", Color3.fromRGB(60, 60, 80))
-        return
-    end
-
-    if hasWithdrawn then
-        updateUI("✅ Already withdrawn.", "DISABLE", Color3.fromRGB(80, 80, 80))
-        return
-    end
-
-    -- Check if we are Player 1
-    local isPlayer1 = false
-    if player1Val then
-        if player1Val:IsA("ObjectValue") and player1Val.Value == LocalPlayer then
-            isPlayer1 = true
-        elseif player1Val:IsA("StringValue") and player1Val.Value == LocalPlayer.Name then
-            isPlayer1 = true
-        elseif player1Val:IsA("StringValue") and player1Val.Value == tostring(LocalPlayer.UserId) then
-            isPlayer1 = true
-        end
-    end
-
-    if not isPlayer1 then
-        updateUI("⛔ You are NOT Player 1", "DISABLE", Color3.fromRGB(80, 40, 40))
-        return
-    end
-
-    local r2 = ready2.Value == true
-    local a2 = accept2.Value == true
-
-    if r2 and a2 then
-        updateUI("⚡ P2 READY & ACCEPTED! Withdrawing...", "⏳ WAIT", Color3.fromRGB(200, 150, 0))
+local function check()
+    if not enabled then return end
+    if withdrawn then status.Text = "✅ Done"; return end
+    if player1Val.Value ~= LocalPlayer then status.Text = "⛔ Not P1"; return end
+    if ready2.Value and accept2.Value then
+        status.Text = "⚡ Withdrawing..."
         task.wait(0.3)
-        removeMyOffer()
+        withdraw()
     else
-        local msg = "👀 Waiting for P2... (R:" .. tostring(r2) .. " | A:" .. tostring(a2) .. ")"
-        updateUI(msg, "⏹ DISABLE", Color3.fromRGB(200, 60, 60))
+        status.Text = "👀 Waiting for P2..."
     end
 end
 
--- ============================================
--- 8. EVENT LISTENERS & TOGGLE
--- ============================================
+ready2:GetPropertyChangedSignal("Value"):Connect(check)
+accept2:GetPropertyChangedSignal("Value"):Connect(check)
 
-ready2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
-accept2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
-
-toggleButton.MouseButton1Click:Connect(function()
-    scriptEnabled = not scriptEnabled
-    if scriptEnabled then
-        hasWithdrawn = false
-        updateUI("🟢 ENABLED – monitoring...", "⏹ DISABLE", Color3.fromRGB(200, 60, 60))
-        checkAndWithdraw()
+btn.MouseButton1Click:Connect(function()
+    enabled = not enabled
+    btn.Text = enabled and "Disable" or "Enable"
+    if enabled then
+        withdrawn = false
+        status.Text = "🟢 Monitoring"
+        check()
     else
-        updateUI("🔴 DISABLED", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
+        status.Text = "🔴 Disabled"
     end
 end)
-
--- ============================================
--- 9. STARTUP
--- ============================================
-
-updateUI("🔴 DISABLED (press ENABLE)", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
-task.wait(1)
-if scriptEnabled then checkAndWithdraw() end
-
-print("✅ Auto-Withdraw UI loaded successfully!")
