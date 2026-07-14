@@ -1,4 +1,4 @@
--- LocalScript: AutoWithdrawUI
+-- LocalScript: AutoWithdrawUI (Corrected Path)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -22,12 +22,10 @@ local function createUI()
     frame.ClipsDescendants = true
     frame.Parent = screenGui
 
-    -- Corner rounding
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = frame
 
-    -- Title Label
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 28)
     title.Position = UDim2.new(0, 0, 0, 4)
@@ -38,7 +36,6 @@ local function createUI()
     title.Font = Enum.Font.GothamBold
     title.Parent = frame
 
-    -- Status Label (shows what the script is doing)
     local status = Instance.new("TextLabel")
     status.Size = UDim2.new(1, -20, 0, 24)
     status.Position = UDim2.new(0, 10, 0, 36)
@@ -50,7 +47,6 @@ local function createUI()
     status.TextXAlignment = Enum.TextXAlignment.Left
     status.Parent = frame
 
-    -- Toggle Button
     local toggleBtn = Instance.new("TextButton")
     toggleBtn.Size = UDim2.new(1, -20, 0, 32)
     toggleBtn.Position = UDim2.new(0, 10, 0, 70)
@@ -71,19 +67,32 @@ end
 local statusLabel, toggleButton = createUI()
 
 -- ============================================
--- 2. SCRIPT LOGIC (auto-withdraw)
+-- 2. FIND THE PATHS (WITH SHAREDMODULE)
 -- ============================================
 
--- Locate the Game folder
-local gameFolder = ReplicatedStorage:FindFirstChild("Game")
-if not gameFolder then
-    gameFolder = workspace:FindFirstChild("Game") -- fallback
-    if not gameFolder then
-        statusLabel.Text = "❌ Game folder not found!"
+-- Step 1: Find the sharedmodule
+local sharedModule = ReplicatedStorage:FindFirstChild("sharedmodule")
+if not sharedModule then
+    -- Fallback: maybe it's in Workspace?
+    sharedModule = workspace:FindFirstChild("sharedmodule")
+    if not sharedModule then
+        statusLabel.Text = "❌ sharedmodule not found!"
         return
     end
 end
 
+-- Step 2: Find Game inside sharedmodule
+local gameFolder = sharedModule:FindFirstChild("Game")
+if not gameFolder then
+    -- Fallback: try looking directly in ReplicatedStorage (just in case)
+    gameFolder = ReplicatedStorage:FindFirstChild("Game")
+    if not gameFolder then
+        statusLabel.Text = "❌ Game folder not found inside sharedmodule!"
+        return
+    end
+end
+
+-- Step 3: Find TradingUtils
 local tradingUtils = gameFolder:FindFirstChild("TradingUtils")
 if not tradingUtils then
     statusLabel.Text = "❌ TradingUtils not found!"
@@ -105,8 +114,8 @@ end
 -- 3. CORE FUNCTIONS
 -- ============================================
 
-local scriptEnabled = false   -- start disabled, user must toggle ON
-local hasWithdrawn = false    -- prevent multiple withdrawals
+local scriptEnabled = false   -- start disabled
+local hasWithdrawn = false
 
 local function updateUI(statusText, buttonText, btnColor)
     statusLabel.Text = statusText
@@ -118,7 +127,6 @@ local function updateUI(statusText, buttonText, btnColor)
     end
 end
 
--- Actually clear the Offer1 folder
 local function removeMyOffer()
     if hasWithdrawn then return end
     hasWithdrawn = true
@@ -130,14 +138,13 @@ local function removeMyOffer()
 
     updateUI("✅ Offer withdrawn! (P2 is ready & accepted)", "DISABLE", Color3.fromRGB(80, 80, 80))
 
-    -- OPTIONAL: Fire a Cancel RemoteEvent if it exists
+    -- OPTIONAL: Fire Cancel RemoteEvent if it exists inside TradingUtils
     -- local cancelEvent = tradingUtils:FindFirstChild("CancelTrade")
     -- if cancelEvent and cancelEvent:IsA("RemoteEvent") then
     --     cancelEvent:FireServer()
     -- end
 end
 
--- Check conditions and withdraw if possible
 local function checkAndWithdraw()
     if not scriptEnabled then
         updateUI("⏸ PAUSED (click ENABLE)", "▶ ENABLE", Color3.fromRGB(60, 60, 80))
@@ -149,7 +156,7 @@ local function checkAndWithdraw()
         return
     end
 
-    -- 1. Verify we are Player 1
+    -- Verify we are Player 1
     local isPlayer1 = false
     if player1Val then
         if player1Val:IsA("ObjectValue") and player1Val.Value == LocalPlayer then
@@ -166,13 +173,13 @@ local function checkAndWithdraw()
         return
     end
 
-    -- 2. Check Player 2's status
+    -- Check Player 2's status
     local r2 = ready2.Value == true
     local a2 = accept2.Value == true
 
     if r2 and a2 then
         updateUI("⚡ Player 2 READY & ACCEPTED! Withdrawing...", "⏳ WAIT", Color3.fromRGB(200, 150, 0))
-        task.wait(0.3) -- small visual delay so you see the change
+        task.wait(0.3)
         removeMyOffer()
     else
         local statusMsg = "👀 Waiting for P2... "
@@ -181,7 +188,7 @@ local function checkAndWithdraw()
         elseif r2 and not a2 then
             statusMsg = statusMsg .. "(Ready: ✅ | Accept: ❌)"
         elseif not r2 and a2 then
-            statusMsg = statusMsg .. "(Ready: ❌ | Accept: ✅)" -- unlikely but handled
+            statusMsg = statusMsg .. "(Ready: ❌ | Accept: ✅)"
         end
         updateUI(statusMsg, "⏹ DISABLE", Color3.fromRGB(200, 60, 60))
     end
@@ -191,9 +198,8 @@ end
 -- 4. EVENT LISTENERS
 -- ============================================
 
--- Listen for changes to Ready2 / Accept2
-local ready2Conn = ready2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
-local accept2Conn = accept2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
+ready2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
+accept2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
 
 -- ============================================
 -- 5. TOGGLE BUTTON
@@ -203,9 +209,9 @@ toggleButton.MouseButton1Click:Connect(function()
     scriptEnabled = not scriptEnabled
 
     if scriptEnabled then
-        hasWithdrawn = false  -- reset so it can trigger again if re-enabled
+        hasWithdrawn = false
         updateUI("🟢 ENABLED – monitoring trade...", "⏹ DISABLE", Color3.fromRGB(200, 60, 60))
-        checkAndWithdraw()  -- run immediately after enabling
+        checkAndWithdraw()
     else
         updateUI("🔴 DISABLED", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
     end
@@ -215,13 +221,11 @@ end)
 -- 6. INITIAL STARTUP
 -- ============================================
 
--- Set initial UI state
 updateUI("🔴 DISABLED (press ENABLE)", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
 
--- Run one check after a short delay (in case a trade is already open when the script loads)
 task.wait(1)
 if scriptEnabled then
     checkAndWithdraw()
 end
 
-print("✅ Auto-Withdraw UI script loaded. Click the button to activate.")
+print("✅ Auto-Withdraw UI loaded. Path: ReplicatedStorage.sharedmodule.Game.TradingUtils")
