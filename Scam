@@ -1,37 +1,201 @@
--- Debug: Show everything inside ReplicatedStorage (2 levels deep)
+-- LocalScript: AutoWithdraw (Final)
 
-task.wait(2)  -- let the game load
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local RS = game:GetService("ReplicatedStorage")
+-- ============================================
+-- 1. EXACT PATH (confirmed by debug)
+-- ============================================
 
-print("═══════════════════════════════════════")
-print("🔍 CONTENTS OF REPLICATEDSTORAGE")
-print("═══════════════════════════════════════")
+local sharedModules = ReplicatedStorage:FindFirstChild("SharedModules")
+if not sharedModules then
+    warn("❌ SharedModules not found! Are you in the right game?")
+    return
+end
 
--- List all top-level children
-for _, child in ipairs(RS:GetChildren()) do
-    print("📁 " .. child.Name .. " (" .. child.ClassName .. ")")
-    
-    -- If it's a folder or model, list its children (Level 2)
-    if child:IsA("Folder") or child:IsA("Model") then
-        for _, sub in ipairs(child:GetChildren()) do
-            print("   └─ " .. sub.Name .. " (" .. sub.ClassName .. ")")
-            
-            -- If we find "TradingUtils", highlight it
-            if string.lower(sub.Name) == "tradingutils" then
-                warn("✅ FOUND TradingUtils at: " .. child.Name .. "." .. sub.Name)
-            end
+local gameFolder = sharedModules:FindFirstChild("Game")
+if not gameFolder then
+    warn("❌ Game folder not found inside SharedModules!")
+    return
+end
+
+local tradingUtils = gameFolder:FindFirstChild("TradingUtils")
+if not tradingUtils then
+    warn("❌ TradingUtils not found inside Game!")
+    return
+end
+
+-- Get the objects we need
+local offer1 = tradingUtils:FindFirstChild("Offer1")      -- Folder (your offer)
+local ready2 = tradingUtils:FindFirstChild("Ready2")      -- BoolValue
+local accept2 = tradingUtils:FindFirstChild("Accept2")    -- BoolValue
+local player1Val = tradingUtils:FindFirstChild("Player1") -- StringValue / ObjectValue
+
+if not offer1 or not ready2 or not accept2 or not player1Val then
+    warn("❌ Missing Offer1, Ready2, Accept2, or Player1 in TradingUtils!")
+    return
+end
+
+print("✅ All objects found! Auto-Withdraw script ready.")
+
+-- ============================================
+-- 2. CREATE UI
+-- ============================================
+
+local function createUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AutoWithdrawUI"
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 110)
+    frame.Position = UDim2.new(0, 15, 0, 15)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    frame.BackgroundTransparency = 0.15
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 28)
+    title.Position = UDim2.new(0, 0, 0, 4)
+    title.BackgroundTransparency = 1
+    title.Text = "🤖 Auto-Withdraw"
+    title.TextColor3 = Color3.fromRGB(220, 220, 255)
+    title.TextSize = 16
+    title.Font = Enum.Font.GothamBold
+    title.Parent = frame
+
+    local status = Instance.new("TextLabel")
+    status.Size = UDim2.new(1, -20, 0, 30)
+    status.Position = UDim2.new(0, 10, 0, 36)
+    status.BackgroundTransparency = 1
+    status.Text = "🔴 DISABLED"
+    status.TextColor3 = Color3.fromRGB(200, 200, 200)
+    status.TextSize = 13
+    status.Font = Enum.Font.Gotham
+    status.TextXAlignment = Enum.TextXAlignment.Left
+    status.Parent = frame
+
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(1, -20, 0, 32)
+    toggleBtn.Position = UDim2.new(0, 10, 0, 72)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 160, 60)
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.TextSize = 14
+    toggleBtn.Font = Enum.Font.Gotham
+    toggleBtn.Text = "▶ ENABLE"
+    toggleBtn.Parent = frame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = toggleBtn
+
+    return status, toggleBtn
+end
+
+local statusLabel, toggleButton = createUI()
+
+-- ============================================
+-- 3. CORE LOGIC
+-- ============================================
+
+local scriptEnabled = false
+local hasWithdrawn = false
+
+local function updateUI(text, btnText, btnColor)
+    statusLabel.Text = text
+    if btnText then toggleButton.Text = btnText end
+    if btnColor then toggleButton.BackgroundColor3 = btnColor end
+end
+
+-- Remove everything from Offer1
+local function withdrawOffer()
+    if hasWithdrawn then return end
+    hasWithdrawn = true
+
+    for _, child in ipairs(offer1:GetChildren()) do
+        child:Destroy()
+    end
+
+    updateUI("✅ Offer withdrawn!", "DISABLE", Color3.fromRGB(80, 80, 80))
+end
+
+-- Check conditions and withdraw if possible
+local function checkAndWithdraw()
+    if not scriptEnabled then
+        updateUI("⏸ PAUSED (click ENABLE)", "▶ ENABLE", Color3.fromRGB(60, 60, 80))
+        return
+    end
+
+    if hasWithdrawn then
+        updateUI("✅ Already withdrawn.", "DISABLE", Color3.fromRGB(80, 80, 80))
+        return
+    end
+
+    -- Verify we are Player 1
+    local isPlayer1 = false
+    if player1Val:IsA("ObjectValue") and player1Val.Value == LocalPlayer then
+        isPlayer1 = true
+    elseif player1Val:IsA("StringValue") then
+        local val = player1Val.Value
+        if val == LocalPlayer.Name or val == tostring(LocalPlayer.UserId) then
+            isPlayer1 = true
         end
     end
-    
-    -- If the top-level child itself is SharedModules or TradingUtils
-    if string.lower(child.Name):find("shared") and string.lower(child.Name):find("module") then
-        warn("✅ FOUND SharedModules at top level: " .. child.Name)
+
+    if not isPlayer1 then
+        updateUI("⛔ You are NOT Player 1", "DISABLE", Color3.fromRGB(80, 40, 40))
+        return
     end
-    if string.lower(child.Name):find("tradingutils") then
-        warn("✅ FOUND TradingUtils at top level: " .. child.Name)
+
+    -- Check Player 2 status
+    local r2 = ready2.Value == true
+    local a2 = accept2.Value == true
+
+    if r2 and a2 then
+        updateUI("⚡ P2 READY & ACCEPTED! Withdrawing...", "⏳ WAIT", Color3.fromRGB(200, 150, 0))
+        task.wait(0.3)
+        withdrawOffer()
+    else
+        local rText = r2 and "✅" or "❌"
+        local aText = a2 and "✅" or "❌"
+        updateUI("👀 Waiting for P2... (R:" .. rText .. " A:" .. aText .. ")", "⏹ DISABLE", Color3.fromRGB(200, 60, 60))
     end
 end
 
-print("═══════════════════════════════════════")
-print("✅ Debug complete. Check for ✅ or ❌ messages above.")
+-- ============================================
+-- 4. EVENT LISTENERS
+-- ============================================
+
+ready2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
+accept2:GetPropertyChangedSignal("Value"):Connect(checkAndWithdraw)
+
+-- ============================================
+-- 5. TOGGLE BUTTON
+-- ============================================
+
+toggleButton.MouseButton1Click:Connect(function()
+    scriptEnabled = not scriptEnabled
+
+    if scriptEnabled then
+        hasWithdrawn = false  -- reset for new trade
+        updateUI("🟢 ENABLED – monitoring...", "⏹ DISABLE", Color3.fromRGB(200, 60, 60))
+        checkAndWithdraw()  -- run immediately
+    else
+        updateUI("🔴 DISABLED", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
+    end
+end)
+
+-- ============================================
+-- 6. STARTUP
+-- ============================================
+
+updateUI("🔴 DISABLED (press ENABLE)", "▶ ENABLE", Color3.fromRGB(60, 160, 60))
+
+print("✅ Auto-Withdraw script loaded successfully!")
+print("📁 Path: ReplicatedStorage.SharedModules.Game.TradingUtils")
