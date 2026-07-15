@@ -5,7 +5,6 @@ local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local StarterGui = game:GetService("StarterGui")
-local RunService = game:GetService("RunService")
 
 -- ==== 1. Notifications ====
 local function notify(title, text, duration)
@@ -19,24 +18,35 @@ local Functions = Remotes and Remotes:FindFirstChild("Functions")
 local Events = Remotes and Remotes:FindFirstChild("Events")
 
 local CombatRF = Functions and Functions:FindFirstChild("CombatRF")
-local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
 local CollectionRF = Functions and Functions:FindFirstChild("CollectionRF")
+local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
 local SacrificeFunction = Functions and Functions:FindFirstChild("SacrificeFunction")
 
 local HatchEggEvent = Events and Events:FindFirstChild("HatchEggEvent")
 local PlantEggEvent = Events and Events:FindFirstChild("PlantEggEvent")
 local FeedEggEvent = Events and Events:FindFirstChild("FeedEggEvent")
-local BossesEvent = Events and Events:FindFirstChild("BossesEvent")
-local ZonesRE = Events and Events:FindFirstChild("ZonesRE")
 
-print("[Project-Atomic] Remotes chargés:")
-print("CombatRF:", CombatRF ~= nil)
-print("ZonesRF:", ZonesRF ~= nil)
-print("HatchEggEvent:", HatchEggEvent ~= nil)
-print("PlantEggEvent:", PlantEggEvent ~= nil)
-print("FeedEggEvent:", FeedEggEvent ~= nil)
+-- ==== 3. SUPPRESSION DES ANIMATIONS (comme dans le script original) ====
+local function removeHatchAnimation()
+    local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("HatchAnimationEvent")
+    if ev then ev:Destroy() end
+end
 
--- ==== 3. Données ====
+local function removeCoinsAnimation()
+    local events = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events")
+    if not events then return end
+    local dataUpdater = events:FindFirstChild("DataUpdater")
+    local dataLoaded = events:FindFirstChild("DataLoaded")
+    if dataUpdater then dataUpdater:Destroy() end
+    if dataLoaded then dataLoaded:Destroy() end
+end
+
+-- Exécuter immédiatement
+pcall(removeHatchAnimation)
+pcall(removeCoinsAnimation)
+notify("Animations", "DataUpdater et DataLoaded supprimés !", 2)
+
+-- ==== 4. Données des boss ====
 local bossZoneMap = {
     Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1", ["Tiki Monster"] = "Zone10B1",
     ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
@@ -62,9 +72,11 @@ for _, zone in ipairs(eggZones) do eggsSelected[zone] = false end
 local zoneCache = {}
 local nestCache = nil
 local lastNestUpdate = 0
+local petCache = {}
 
--- ==== 4. Configuration ====
+-- ==== 5. Configuration ====
 local config = {
+    farmBosses = false,
     autoKill = false,
     autoMove = false,
     wakeZones = false,
@@ -78,8 +90,8 @@ local config = {
     wallspeed = 50,
 }
 
--- ==== 5. Fonctions de base ====
-local function getPets()
+-- ==== 6. Fonctions optimisées ====
+local function updatePets()
     local pets = {}
     if LocalPlayer.Character then
         local petsObj = LocalPlayer.Character:FindFirstChild("Pets")
@@ -101,27 +113,16 @@ end
 
 local function teleportToZone(zoneName)
     local zone = getZone(zoneName)
-    if not zone then return false end
+    if not zone then return end
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return false end
+    if not root then return end
     root.CFrame = CFrame.new(zone.Position + Vector3.new(0, 10, 0))
-    return true
 end
 
--- ==== 6. AUTO-KILL ====
-local function killBoss(boss, pets)
-    if not CombatRF or not boss then return false end
-    for _, pet in ipairs(pets) do
-        for i = 1, 3 do
-            pcall(CombatRF.InvokeServer, CombatRF, "AttackEnemy", boss, pet)
-        end
-    end
-    return true
-end
-
-local function autoKill()
-    if not config.autoKill then return end
-    local pets = getPets()
+-- ==== 7. AUTO-KILL (ultra rapide) ====
+local function killBosses()
+    if not config.autoKill and not config.farmBosses then return end
+    local pets = updatePets()
     if #pets == 0 then return end
     
     for _, bossName in ipairs(bossList) do
@@ -134,8 +135,10 @@ local function autoKill()
                 local enemies = zone:FindFirstChild("Enemies")
                 if enemies then
                     local boss = enemies:FindFirstChild(bossName)
-                    if boss then
-                        pcall(killBoss, boss, pets)
+                    if boss and CombatRF then
+                        for _, pet in ipairs(pets) do
+                            pcall(CombatRF.InvokeServer, CombatRF, "AttackEnemy", boss, pet)
+                        end
                         task.wait(config.killSpeed)
                     end
                 end
@@ -144,7 +147,7 @@ local function autoKill()
     end
 end
 
--- ==== 7. RÉVEIL DES ZONES ====
+-- ==== 8. RÉVEIL DES ZONES ====
 local wakeTimer = 0
 local function wakeUpZones()
     if not config.wakeZones or not ZonesRF then return end
@@ -162,22 +165,20 @@ local function wakeUpZones()
     end
 end
 
--- ==== 8. AUTO-HATCH (ultra rapide) ====
+-- ==== 9. AUTO-HATCH ====
 local function autoHatch()
     if not config.autoHatch or not HatchEggEvent then return end
-    -- Appel en rafale pour éclore plusieurs oeufs rapidement
-    for i = 1, 10 do
+    for i = 1, 8 do
         pcall(HatchEggEvent.FireServer, HatchEggEvent)
     end
 end
 
--- ==== 9. AUTO-PLANT (ultra rapide) ====
+-- ==== 10. AUTO-PLANT ====
 local function autoPlant()
     if not config.autoPlant or not PlantEggEvent then return end
     for zoneName, enabled in pairs(eggsSelected) do
         if enabled then
-            -- Plantation en rafale
-            for i = 1, 10 do
+            for i = 1, 8 do
                 pcall(PlantEggEvent.FireServer, PlantEggEvent, zoneName)
             end
             task.wait(config.eggSpeed)
@@ -185,17 +186,14 @@ local function autoPlant()
     end
 end
 
--- ==== 10. AUTO-NESTS (ultra rapide) ====
+-- ==== 11. AUTO-NESTS ====
 local function autoNests()
     if not config.autoNests or not FeedEggEvent then return end
-    
-    -- Mise à jour du cache des nids (toutes les 30s)
     local now = os.clock()
     if now - lastNestUpdate > 30 then
         nestCache = Workspace:FindFirstChild("Nests")
         lastNestUpdate = now
     end
-    
     if nestCache then
         for _, nest in ipairs(nestCache:GetChildren()) do
             for i = 1, 5 do
@@ -206,7 +204,7 @@ local function autoNests()
     end
 end
 
--- ==== 11. DOUBLE SAUT ====
+-- ==== 12. DOUBLE SAUT ====
 local jumpConnection, jumpCount
 local function setupDoubleJump()
     if config.doubleJump then
@@ -231,7 +229,7 @@ local function setupDoubleJump()
     end
 end
 
--- ==== 12. VITESSE ====
+-- ==== 13. VITESSE ====
 local function setSpeed()
     local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
     if humanoid then
@@ -239,7 +237,7 @@ local function setSpeed()
     end
 end
 
--- ==== 13. ANTI-KICK ====
+-- ==== 14. ANTI-KICK ====
 local AntiKickEnabled = true
 local kickAvoidCount = 0
 local ac1
@@ -263,33 +261,35 @@ ac1 = hookmetamethod(game, "__namecall", function(self, ...)
     return ac1(self, ...)
 end)
 
--- ==== 14. BOUCLE PRINCIPALE ====
+-- ==== 15. BOUCLE PRINCIPALE (légère) ====
 local active = false
-local mainConnection = nil
+local mainThread = nil
 local killCounter = 0
 
-local function farmLoop()
-    if not active then return end
-    
-    -- Réveil des zones
-    pcall(wakeUpZones)
-    
-    -- Auto-Kill
-    pcall(autoKill)
-    
-    -- Auto-Hatch
-    pcall(autoHatch)
-    
-    -- Auto-Plant
-    pcall(autoPlant)
-    
-    -- Auto-Nests
-    pcall(autoNests)
-    
-    -- Vitesse (maintien)
-    pcall(setSpeed)
-    
-    task.wait(0.01) -- Ultra rapide
+local function mainLoop()
+    while active do
+        -- Réveil des zones
+        if config.wakeZones then pcall(wakeUpZones) end
+        
+        -- Auto-Kill
+        if config.autoKill or config.farmBosses then 
+            pcall(killBosses) 
+        end
+        
+        -- Auto-Hatch
+        if config.autoHatch then pcall(autoHatch) end
+        
+        -- Auto-Plant
+        if config.autoPlant then pcall(autoPlant) end
+        
+        -- Auto-Nests
+        if config.autoNests then pcall(autoNests) end
+        
+        -- Vitesse
+        pcall(setSpeed)
+        
+        task.wait(0.02) -- Léger délai pour éviter le lag
+    end
 end
 
 local function start()
@@ -301,25 +301,18 @@ local function start()
     active = true
     killCounter = 0
     wakeTimer = 0
-    
-    -- Setup double jump
     pcall(setupDoubleJump)
-    
-    -- Démarrer la boucle
-    mainConnection = RunService.Heartbeat:Connect(farmLoop)
+    mainThread = task.spawn(mainLoop)
     notify("Project-Atomic", "Farm démarré !", 2)
 end
 
 local function stop()
     active = false
-    if mainConnection then
-        mainConnection:Disconnect()
-        mainConnection = nil
-    end
+    if mainThread then task.cancel(mainThread); mainThread = nil end
     notify("Project-Atomic", "Farm arrêté.", 2)
 end
 
--- ==== 15. INTERFACE RAYFIELD ====
+-- ==== 16. INTERFACE RAYFIELD ====
 local win = Rayfield:CreateWindow({
     Name = "Project-Atomic",
     LoadingTitle = "Pet Swarm Sim",
@@ -336,7 +329,7 @@ mainTab:CreateButton({ Name = "⏹ Arrêter", Callback = stop })
 
 mainTab:CreateSection("Statut")
 local statusLabel = mainTab:CreateLabel("Status: Arrêté")
-local killLabel = mainTab:CreateLabel("Boss tués: 0")
+local killLabel = mainTab:CreateLabel("Boss: OFF")
 local hatchLabel = mainTab:CreateLabel("Hatch: OFF")
 local plantLabel = mainTab:CreateLabel("Plant: OFF")
 local nestLabel = mainTab:CreateLabel("Nests: OFF")
@@ -346,7 +339,7 @@ task.spawn(function()
         task.wait(0.5)
         if active then
             statusLabel:Set("Status: Actif")
-            killLabel:Set("Boss tués: " .. killCounter)
+            killLabel:Set("Boss: " .. (config.autoKill and "ON" or "OFF"))
             hatchLabel:Set("Hatch: " .. (config.autoHatch and "ON" or "OFF"))
             plantLabel:Set("Plant: " .. (config.autoPlant and "ON" or "OFF"))
             nestLabel:Set("Nests: " .. (config.autoNests and "ON" or "OFF"))
@@ -419,4 +412,4 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
-notify("Project-Atomic", "Script chargé ! Activez les options et cliquez sur Démarrer.", 3)
+notify("Project-Atomic", "Script chargé ! DataUpdater supprimé.", 3)
