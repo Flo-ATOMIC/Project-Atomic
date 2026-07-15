@@ -13,16 +13,56 @@ local function notify(title, text, duration)
     pcall(function() StarterGui:SetCore("SendNotification", { Title = title, Text = text, Duration = duration }) end)
 end
 
+local function log(...)
+    print("[Project-Atomic]", ...)
+end
+
 -- ==== 2. Remotes ====
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
 local Functions = Remotes and Remotes:FindFirstChild("Functions")
 local Events = Remotes and Remotes:FindFirstChild("Events")
+
+-- Remote principal : BossEvent (supposé dans Events ou Functions)
+local BossEvent = nil
+local BossEventType = nil
+
+-- On cherche BossEvent partout
+local function findBossEvent()
+    if BossEvent then return BossEvent end
+    local function search(container)
+        if not container then return nil end
+        for _, child in ipairs(container:GetChildren()) do
+            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+                if child.Name == "BossEvent" then
+                    return child
+                end
+            end
+            local found = search(child)
+            if found then return found end
+        end
+        return nil
+    end
+    local remote = search(Remotes)
+    if not remote then
+        remote = search(ReplicatedStorage)
+    end
+    if remote then
+        BossEvent = remote
+        BossEventType = remote:IsA("RemoteFunction") and "Function" or "Event"
+        log("BossEvent trouvé !", remote.Name, "Type:", BossEventType)
+        notify("BossEvent trouvé", "Type: " .. BossEventType, 3)
+    else
+        log("BossEvent non trouvé !")
+    end
+    return remote
+end
+
+-- Récupération des autres remotes
 local CombatRemote = Functions and Functions:FindFirstChild("CombatRF")
 local PlantRemote = Events and Events:FindFirstChild("PlantEggEvent")
 local HatchRemote = Events and Events:FindFirstChild("HatchEggEvent")
 local FeedRemote = Events and Events:FindFirstChild("FeedEggEvent")
 local SacrificeRemote = Functions and Functions:FindFirstChild("SacrificeFunction")
-local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
 
 -- ==== 3. Données des boss ====
 local bossZoneMap = {
@@ -42,15 +82,17 @@ for _, name in ipairs(bossList) do bossEnabled[name] = true end
 local config = {
     farmBosses = false,
     autoKillBosses = false,
-    autoMoveToZones = false,   -- Se déplacer vers les zones
-    bossAttackDelay = 0.005,   -- ultra rapide
+    autoMoveToZones = false,
+    bossAttackDelay = 0.005,
+    useBossEvent = false,        -- Nouvelle option
+    bossEventMethod = "zone",     -- "zone", "bossname", "both", "none", "auto"
     farmEnemies = false,
     farmFood = false,
     autoPlant = false,
     autoHatch = false,
     autoNests = false,
     doubleJump = false,
-    wallspeed = 30,            -- vitesse de déplacement
+    wallspeed = 30,
     enemyDelay = 0.5,
     foodDelay = 0.5,
     eggDelay = 0.001,
@@ -76,19 +118,72 @@ local function safeAttackEnemy(enemy, pet)
     end
 end
 
--- Déplacement vers une zone
 local function moveToZone(zoneName)
     local zone = Workspace.Zones:FindFirstChild(zoneName)
     if not zone then return end
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    local targetPos = zone.Position + Vector3.new(0, 5, 0) -- au-dessus de la zone
+    local targetPos = zone.Position + Vector3.new(0, 5, 0)
     local tween = TweenService:Create(root, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
     tween:Play()
     tween.Completed:Wait()
 end
 
--- ==== 6. AUTO-KILL (ultra rapide) ====
+-- ==== 6. FONCTION SPAWN VIA BOSSEVENT ====
+local function spawnBossViaEvent(bossName)
+    if not config.useBossEvent then return false end
+    local remote = findBossEvent()
+    if not remote then return false end
+
+    local zoneName = bossZoneMap[bossName]
+    if not zoneName then return false end
+
+    local method = config.bossEventMethod
+    local argsList = {}
+
+    if method == "auto" or method == "zone" then
+        table.insert(argsList, {zoneName})
+    end
+    if method == "auto" or method == "bossname" then
+        table.insert(argsList, {bossName})
+    end
+    if method == "auto" or method == "both" then
+        table.insert(argsList, {zoneName, bossName})
+    end
+    if method == "auto" or method == "none" then
+        table.insert(argsList, {})
+    end
+
+    for _, args in ipairs(argsList) do
+        local success = false
+        if BossEventType == "Function" then
+            success = pcall(remote.InvokeServer, remote, table.unpack(args))
+        else -- Event
+            success = pcall(remote.FireServer, remote, table.unpack(args))
+        end
+        if success then
+            log("BossEvent appelé avec succès pour", bossName, "arguments:", unpack(args))
+            return true
+        else
+            log("Échec de l'appel BossEvent avec", unpack(args))
+        end
+        task.wait(0.1)
+    end
+    return false
+end
+
+-- Fonction pour appeler BossEvent sur tous les boss activés
+local function triggerAllBossEvents()
+    if not config.useBossEvent then return end
+    for _, bossName in ipairs(bossList) do
+        if bossEnabled[bossName] then
+            spawnBossViaEvent(bossName)
+            task.wait(config.bossAttackDelay)
+        end
+    end
+end
+
+-- ==== 7. AUTO-KILL ====
 local function autoKillBosses()
     if not config.autoKillBosses then return end
     local pets = updatePets()
@@ -98,7 +193,6 @@ local function autoKillBosses()
         if bossEnabled[bossName] then
             local zone = Workspace.Zones:FindFirstChild(bossZoneMap[bossName])
             if zone then
-                -- Si déplacement auto, on s'y rend
                 if config.autoMoveToZones then
                     pcall(moveToZone, zone.Name)
                 end
@@ -106,11 +200,9 @@ local function autoKillBosses()
                 if enemies then
                     local boss = enemies:FindFirstChild(bossName)
                     if boss and CombatRemote then
-                        -- Attaque en rafale avec tous les pets
                         for _, pet in ipairs(pets) do
                             pcall(CombatRemote.InvokeServer, CombatRemote, "AttackEnemy", boss, pet)
                         end
-                        -- Petite pause pour laisser le serveur traiter
                         task.wait(0.01)
                     end
                 end
@@ -119,7 +211,7 @@ local function autoKillBosses()
     end
 end
 
--- ==== 7. Attaque normale des boss (si farm activé) ====
+-- ==== 8. Attaque normale des boss ====
 local function attackBosses()
     if not config.farmBosses then return end
     local pets = updatePets()
@@ -141,10 +233,10 @@ local function attackBosses()
     end
 end
 
--- ==== 8. Autres fonctions (plant, hatch, etc.) ====
+-- ==== 9. Autres fonctions ====
 local function doPlanting()
     if not config.autoPlant or not PlantRemote then return end
-    -- Vous pouvez ajouter ici la logique de plantation si nécessaire
+    -- Logique de plantation (à adapter)
 end
 
 local function doHatching()
@@ -190,7 +282,7 @@ ac1 = hookmetamethod(game, "__namecall", function(self, ...)
     return ac1(self, ...)
 end)
 
--- ==== 9. Boucle principale ====
+-- ==== 10. Boucle principale ====
 local active = false
 local mainThread = nil
 
@@ -199,16 +291,22 @@ local function start()
     active = true
     mainThread = task.spawn(function()
         while active do
+            -- Tenter le spawn via BossEvent
+            if config.useBossEvent then
+                pcall(triggerAllBossEvents)
+            end
+            -- Auto-kill
             if config.autoKillBosses then
                 pcall(autoKillBosses)
             end
+            -- Farm normal
             if config.farmBosses then
                 pcall(attackBosses)
             end
+            -- Autres
             pcall(doHatching)
             pcall(doNests)
-            -- Autres tâches...
-            task.wait(0.1) -- très rapide pour maximiser les kills
+            task.wait(0.1)
         end
     end)
     notify("Farm", "Démarré !", 2)
@@ -220,11 +318,11 @@ local function stop()
     notify("Farm", "Arrêté.", 2)
 end
 
--- ==== 10. Interface Rayfield ====
+-- ==== 11. Interface Rayfield ====
 local win = Rayfield:CreateWindow({
     Name = "Project-Atomic",
     LoadingTitle = "Pet Swarm Sim",
-    LoadingSubtitle = "Auto-Kill Edition",
+    LoadingSubtitle = "BossEvent Edition",
     ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "Config" },
     Theme = "Amethyst"
 })
@@ -239,7 +337,32 @@ bossTab:CreateSection("Boss Farm")
 bossTab:CreateToggle({ Name = "Enable Boss Farming", CurrentValue = config.farmBosses, Callback = function(v) config.farmBosses = v end })
 bossTab:CreateToggle({ Name = "Enable All Bosses", CurrentValue = true, Callback = function(v) for _, name in ipairs(bossList) do bossEnabled[name] = v end end })
 
-bossTab:CreateSection("Accélération")
+bossTab:CreateSection("BossEvent (spawn)")
+bossTab:CreateToggle({ Name = "🔄 Utiliser BossEvent", CurrentValue = config.useBossEvent, Callback = function(v) config.useBossEvent = v end })
+bossTab:CreateDropdown({
+    Name = "Méthode d'appel",
+    Options = {"auto", "zone", "bossname", "both", "none"},
+    CurrentOption = config.bossEventMethod,
+    Callback = function(v) config.bossEventMethod = v end
+})
+bossTab:CreateButton({ Name = "🔍 Tester BossEvent seul", Callback = function()
+    local remote = findBossEvent()
+    if remote then
+        notify("Test", "BossEvent trouvé : " .. remote.Name, 2)
+        -- Tester sur le premier boss activé
+        for _, name in ipairs(bossList) do
+            if bossEnabled[name] then
+                log("Test spawn pour", name)
+                spawnBossViaEvent(name)
+                break
+            end
+        end
+    else
+        notify("Erreur", "BossEvent introuvable !", 3)
+    end
+end })
+
+bossTab:CreateSection("Auto-Kill")
 bossTab:CreateToggle({ Name = "⚡ Auto-Kill (ultra rapide)", CurrentValue = config.autoKillBosses, Callback = function(v) config.autoKillBosses = v end })
 bossTab:CreateToggle({ Name = "🚶 Se déplacer vers les zones", CurrentValue = config.autoMoveToZones, Callback = function(v) config.autoMoveToZones = v end })
 bossTab:CreateSlider({ Name = "Delay d'attaque", Range = {0.001, 0.05}, Increment = 0.001, CurrentValue = config.bossAttackDelay, Callback = function(v) config.bossAttackDelay = v end })
@@ -249,7 +372,7 @@ for _, name in ipairs(bossList) do
     bossTab:CreateToggle({ Name = name, CurrentValue = bossEnabled[name], Callback = function(v) bossEnabled[name] = v end })
 end
 
--- Onglet Misc pour double saut, vitesse, etc.
+-- Onglet Misc
 local miscTab = win:CreateTab("Misc")
 miscTab:CreateSection("Movement")
 local jumpConnection, jumpCount
@@ -286,4 +409,4 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
-notify("Project-Atomic", "Version Auto-Kill chargée. Activez l'auto-kill pour tuer les boss instantanément.", 4)
+notify("Project-Atomic", "BossEvent détecté ! Utilisez les options pour le tester.", 4)
