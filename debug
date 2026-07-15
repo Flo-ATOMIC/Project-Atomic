@@ -1,289 +1,96 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-local StarterGui = game:GetService("StarterGui")
+-- ==== 7. SCAN DE WORKSPACE POUR INTERACTIONS (DÉTAILLÉ) ====
+local altarObjects = {}
 
--- ==== 1. Notifications ====
-local function notify(title, text, duration)
-    duration = duration or 3
-    pcall(function() StarterGui:SetCore("SendNotification", { Title = title, Text = text, Duration = duration }) end)
-end
-
--- ==== 2. Remotes ====
-local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
-local Functions = Remotes and Remotes:FindFirstChild("Functions")
-local Events = Remotes and Remotes:FindFirstChild("Events")
-local CombatRemote = Functions and Functions:FindFirstChild("CombatRF")
-local PlantRemote = Events and Events:FindFirstChild("PlantEggEvent")
-local HatchRemote = Events and Events:FindFirstChild("HatchEggEvent")
-local FeedRemote = Events and Events:FindFirstChild("FeedEggEvent")
-local SacrificeRemote = Functions and Functions:FindFirstChild("SacrificeFunction")
-local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
-
--- ==== 3. Données des boss ====
-local bossZoneMap = {
-    Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1", ["Tiki Monster"] = "Zone10B1",
-    ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
-    ["The Ethereal Everia"] = "Zone12B2", ["Hornet Boss"] = "SummerEventZoneB1",
-    ["The Ice Serpent"] = "WinterEventZoneB1", ["Great Sphinx"] = "ElementEventZoneB1",
-}
-local bossList = {
-    "Naga", "Lava Monster", "Ghost Pirate", "Tiki Monster", "The Frozen Ancient", "The Big 100M",
-    "The Ethereal Everia", "Hornet Boss", "The Ice Serpent", "Great Sphinx"
-}
-local bossEnabled = {}
-for _, name in ipairs(bossList) do bossEnabled[name] = true end
-
--- ==== 4. Configuration ====
-local config = {
-    farmBosses = false,
-    autoKillBosses = false,
-    autoMoveToZones = false,   -- Se déplacer vers les zones
-    bossAttackDelay = 0.005,   -- ultra rapide
-    farmEnemies = false,
-    farmFood = false,
-    autoPlant = false,
-    autoHatch = false,
-    autoNests = false,
-    doubleJump = false,
-    wallspeed = 30,            -- vitesse de déplacement
-    enemyDelay = 0.5,
-    foodDelay = 0.5,
-    eggDelay = 0.001,
-}
-
--- ==== 5. Fonctions de combat et déplacement ====
-local function updatePets()
-    local pets = {}
-    if LocalPlayer.Character then
-        local petsObj = LocalPlayer.Character:FindFirstChild("Pets")
-        if petsObj then
-            for _, v in ipairs(petsObj:GetChildren()) do
-                table.insert(pets, v)
-            end
-        end
-    end
-    return pets
-end
-
-local function safeAttackEnemy(enemy, pet)
-    if CombatRemote and enemy and pet then
-        pcall(CombatRemote.InvokeServer, CombatRemote, "AttackEnemy", enemy, pet)
-    end
-end
-
--- Déplacement vers une zone
-local function moveToZone(zoneName)
-    local zone = Workspace.Zones:FindFirstChild(zoneName)
-    if not zone then return end
-    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    local targetPos = zone.Position + Vector3.new(0, 5, 0) -- au-dessus de la zone
-    local tween = TweenService:Create(root, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
-    tween:Play()
-    tween.Completed:Wait()
-end
-
--- ==== 6. AUTO-KILL (ultra rapide) ====
-local function autoKillBosses()
-    if not config.autoKillBosses then return end
-    local pets = updatePets()
-    if #pets == 0 then return end
-
+local function scanWorkspaceForAltars()
+    altarObjects = {}
+    log("=== SCAN DE WORKSPACE POUR INTERACTIONS ===")
     for _, bossName in ipairs(bossList) do
-        if bossEnabled[bossName] then
-            local zone = Workspace.Zones:FindFirstChild(bossZoneMap[bossName])
-            if zone then
-                -- Si déplacement auto, on s'y rend
-                if config.autoMoveToZones then
-                    pcall(moveToZone, zone.Name)
-                end
-                local enemies = zone:FindFirstChild("Enemies")
-                if enemies then
-                    local boss = enemies:FindFirstChild(bossName)
-                    if boss and CombatRemote then
-                        -- Attaque en rafale avec tous les pets
-                        for _, pet in ipairs(pets) do
-                            pcall(CombatRemote.InvokeServer, CombatRemote, "AttackEnemy", boss, pet)
-                        end
-                        -- Petite pause pour laisser le serveur traiter
-                        task.wait(0.01)
+        local zoneName = bossZoneMap[bossName]
+        local zone = Workspace.Zones:FindFirstChild(zoneName)
+        if zone then
+            for _, child in ipairs(zone:GetDescendants()) do
+                if child:IsA("ClickDetector") then
+                    local parent = child.Parent
+                    if parent and parent:IsA("BasePart") then
+                        log("ClickDetector trouvé dans", zoneName, "sur", parent.Name, "(full path:", child:GetFullName(), ")")
+                        table.insert(altarObjects, {
+                            type = "ClickDetector",
+                            detector = child,
+                            part = parent,
+                            zone = zoneName,
+                            boss = bossName
+                        })
                     end
+                elseif child:IsA("ProximityPrompt") then
+                    log("ProximityPrompt trouvé dans", zoneName, "sur", child.Parent and child.Parent.Name or "inconnu", "(full path:", child:GetFullName(), ")")
+                    table.insert(altarObjects, {
+                        type = "ProximityPrompt",
+                        prompt = child,
+                        zone = zoneName,
+                        boss = bossName
+                    })
                 end
             end
         end
     end
+    log("=== FIN SCAN ===")
+    notify("Scan Workspace", #altarObjects .. " interactions trouvées. Voir console F9 pour les détails.", 4)
 end
 
--- ==== 7. Attaque normale des boss (si farm activé) ====
-local function attackBosses()
-    if not config.farmBosses then return end
-    local pets = updatePets()
-    if #pets == 0 then return end
-    for _, bossName in ipairs(bossList) do
-        if bossEnabled[bossName] then
-            local zone = Workspace.Zones:FindFirstChild(bossZoneMap[bossName])
-            if zone then
-                local enemies = zone:FindFirstChild("Enemies")
-                if enemies then
-                    local boss = enemies:FindFirstChild(bossName)
-                    if boss then
-                        safeAttackEnemy(boss, pets[1])
-                        task.wait(config.bossAttackDelay)
-                    end
-                end
+-- ==== 9. CLIC SUR LES AUTELS (amélioré) ====
+function clickAllAltars()
+    if #altarObjects == 0 then
+        scanWorkspaceForAltars()
+    end
+    for _, obj in ipairs(altarObjects) do
+        if obj.type == "ClickDetector" and obj.detector then
+            local success, err = pcall(function()
+                obj.detector:Click(LocalPlayer)
+            end)
+            if success then
+                log("Clic effectué sur ClickDetector dans", obj.zone, "pour", obj.boss)
+            else
+                log("Erreur clic sur", obj.zone, ":", err)
+            end
+        elseif obj.type == "ProximityPrompt" and obj.prompt then
+            local success, err = pcall(function()
+                -- Essayer différentes méthodes d'activation
+                obj.prompt:InputHoldBegin(LocalPlayer)
+                task.wait(0.1)
+                obj.prompt:InputHoldEnd(LocalPlayer)
+            end)
+            if success then
+                log("Prompt activé dans", obj.zone, "pour", obj.boss)
+            else
+                log("Erreur prompt sur", obj.zone, ":", err)
             end
         end
+        task.wait(0.2)
     end
 end
 
--- ==== 8. Autres fonctions (plant, hatch, etc.) ====
-local function doPlanting()
-    if not config.autoPlant or not PlantRemote then return end
-    -- Vous pouvez ajouter ici la logique de plantation si nécessaire
-end
-
-local function doHatching()
-    if not config.autoHatch or not HatchRemote then return end
-    pcall(HatchRemote.FireServer, HatchRemote)
-end
-
-local function doNests()
-    if not config.autoNests or not FeedRemote then return end
-    local nests = Workspace:FindFirstChild("Nests")
-    if nests then
-        for _, nest in ipairs(nests:GetChildren()) do
-            pcall(FeedRemote.FireServer, FeedRemote, nest)
+-- Ajouter un bouton pour cliquer uniquement sur un autel spécifique (ex: celui de Naga)
+function clickAltarForBoss(bossName)
+    local zoneName = bossZoneMap[bossName]
+    if not zoneName then return end
+    local found = false
+    for _, obj in ipairs(altarObjects) do
+        if obj.zone == zoneName then
+            if obj.type == "ClickDetector" and obj.detector then
+                pcall(obj.detector.Click, obj.detector, LocalPlayer)
+                log("Clic manuel sur", obj.part and obj.part.Name or "inconnu", "pour", bossName)
+                found = true
+            elseif obj.type == "ProximityPrompt" and obj.prompt then
+                pcall(obj.prompt.InputHoldBegin, obj.prompt, LocalPlayer)
+                task.wait(0.1)
+                pcall(obj.prompt.InputHoldEnd, obj.prompt, LocalPlayer)
+                log("Prompt activé pour", bossName)
+                found = true
+            end
+            break
         end
     end
-end
-
-local function sacrificePet(petName)
-    if SacrificeRemote then
-        pcall(SacrificeRemote.InvokeServer, SacrificeRemote, "SacrificeWell", petName)
+    if not found then
+        notify("Aucun autel", "Pour " .. bossName .. ", scanné ?", 2)
     end
 end
-
--- Anti-kick
-local AntiKickEnabled = true
-local kickAvoidCount = 0
-local ac1
-local function disableAntiKick()
-    AntiKickEnabled = false
-    if ac1 then
-        hookmetamethod(game, "__namecall", ac1)
-        ac1 = nil
-    end
-end
-ac1 = hookmetamethod(game, "__namecall", function(self, ...)
-    if not AntiKickEnabled then return ac1(self, ...) end
-    local method = getnamecallmethod()
-    if method:lower() == "kick" and self == game.Players.LocalPlayer then
-        kickAvoidCount = kickAvoidCount + 1
-        notify("Kick", "Évitée #" .. tostring(kickAvoidCount), 2)
-        return
-    end
-    return ac1(self, ...)
-end)
-
--- ==== 9. Boucle principale ====
-local active = false
-local mainThread = nil
-
-local function start()
-    if active then return end
-    active = true
-    mainThread = task.spawn(function()
-        while active do
-            if config.autoKillBosses then
-                pcall(autoKillBosses)
-            end
-            if config.farmBosses then
-                pcall(attackBosses)
-            end
-            pcall(doHatching)
-            pcall(doNests)
-            -- Autres tâches...
-            task.wait(0.1) -- très rapide pour maximiser les kills
-        end
-    end)
-    notify("Farm", "Démarré !", 2)
-end
-
-local function stop()
-    active = false
-    if mainThread then task.cancel(mainThread); mainThread = nil end
-    notify("Farm", "Arrêté.", 2)
-end
-
--- ==== 10. Interface Rayfield ====
-local win = Rayfield:CreateWindow({
-    Name = "Project-Atomic",
-    LoadingTitle = "Pet Swarm Sim",
-    LoadingSubtitle = "Auto-Kill Edition",
-    ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "Config" },
-    Theme = "Amethyst"
-})
-
-local mainTab = win:CreateTab("Main")
-mainTab:CreateSection("Control")
-mainTab:CreateButton({ Name = "Start", Callback = start })
-mainTab:CreateButton({ Name = "Stop", Callback = stop })
-
-local bossTab = win:CreateTab("Bosses")
-bossTab:CreateSection("Boss Farm")
-bossTab:CreateToggle({ Name = "Enable Boss Farming", CurrentValue = config.farmBosses, Callback = function(v) config.farmBosses = v end })
-bossTab:CreateToggle({ Name = "Enable All Bosses", CurrentValue = true, Callback = function(v) for _, name in ipairs(bossList) do bossEnabled[name] = v end end })
-
-bossTab:CreateSection("Accélération")
-bossTab:CreateToggle({ Name = "⚡ Auto-Kill (ultra rapide)", CurrentValue = config.autoKillBosses, Callback = function(v) config.autoKillBosses = v end })
-bossTab:CreateToggle({ Name = "🚶 Se déplacer vers les zones", CurrentValue = config.autoMoveToZones, Callback = function(v) config.autoMoveToZones = v end })
-bossTab:CreateSlider({ Name = "Delay d'attaque", Range = {0.001, 0.05}, Increment = 0.001, CurrentValue = config.bossAttackDelay, Callback = function(v) config.bossAttackDelay = v end })
-
-bossTab:CreateSection("Liste des boss")
-for _, name in ipairs(bossList) do
-    bossTab:CreateToggle({ Name = name, CurrentValue = bossEnabled[name], Callback = function(v) bossEnabled[name] = v end })
-end
-
--- Onglet Misc pour double saut, vitesse, etc.
-local miscTab = win:CreateTab("Misc")
-miscTab:CreateSection("Movement")
-local jumpConnection, jumpCount
-miscTab:CreateToggle({ Name = "Infinite Double Jump", CurrentValue = config.doubleJump, Callback = function(v)
-    config.doubleJump = v
-    if v then
-        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
-            jumpCount = 0
-            if not jumpConnection then
-                jumpConnection = humanoid.Jumping:Connect(function()
-                    jumpCount = jumpCount + 1
-                    if jumpCount >= 2 then humanoid.Jump = true; jumpCount = 0 end
-                end)
-            end
-        end
-    elseif jumpConnection then jumpConnection:Disconnect(); jumpConnection = nil; jumpCount = 0 end
-end })
-
-miscTab:CreateSlider({ Name = "Walk Speed", Range = {16, 100}, Increment = 1, CurrentValue = config.wallspeed, Callback = function(v)
-    config.wallspeed = v
-    local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if humanoid then humanoid.WalkSpeed = v end
-end })
-
-miscTab:CreateSection("Hotkey")
-miscTab:CreateLabel("Press H to hide/show GUI")
-local guiVisible = true
-UserInputService.InputBegan:Connect(function(input, gp)
-    if not gp and input.KeyCode == Enum.KeyCode.H then
-        guiVisible = not guiVisible
-        for _, v in pairs(win:GetChildren()) do if v:IsA("ScreenGui") then v.Enabled = guiVisible end end
-    end
-end)
-
-notify("Project-Atomic", "Version Auto-Kill chargée. Activez l'auto-kill pour tuer les boss instantanément.", 4)
