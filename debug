@@ -178,7 +178,7 @@ local function autoPlant()
     if not config.autoPlant or not PlantEggEvent then return end
     for zoneName, enabled in pairs(eggsSelected) do
         if enabled then
-            for i = 1, 9 do
+            for i = 1, 8 do
                 pcall(PlantEggEvent.FireServer, PlantEggEvent, zoneName)
             end
             task.wait(config.eggSpeed)
