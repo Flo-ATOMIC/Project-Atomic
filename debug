@@ -16,9 +16,18 @@ end
 -- ==== 2. Remotes ====
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
 local Functions = Remotes and Remotes:FindFirstChild("Functions")
-local CombatRF = Functions and Functions:FindFirstChild("CombatRF")
+local Events = Remotes and Remotes:FindFirstChild("Events")
 
-print("[Auto-Kill] CombatRF trouvé ?", CombatRF ~= nil)
+local CombatRF = Functions and Functions:FindFirstChild("CombatRF")
+local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
+local BossesEvent = Events and Events:FindFirstChild("BossesEvent")
+local ZonesRE = Events and Events:FindFirstChild("ZonesRE")
+
+print("[Auto-Kill] Remotes trouvés:")
+print("CombatRF:", CombatRF ~= nil)
+print("ZonesRF:", ZonesRF ~= nil)
+print("BossesEvent:", BossesEvent ~= nil)
+print("ZonesRE:", ZonesRE ~= nil)
 
 -- ==== 3. Données des boss ====
 local bossZoneMap = {
@@ -44,8 +53,11 @@ for _, name in ipairs(bossList) do bossEnabled[name] = true end
 local config = {
     autoKill = false,
     autoMove = false,
-    killDelay = 0.001,        -- Ultra rapide
-    teleportDelay = 0.5,      -- Délai entre chaque zone
+    wakeUpZones = false,           -- Nouvelle option
+    spawnAttempt = false,          -- Nouvelle option
+    killDelay = 0.001,
+    teleportDelay = 0.5,
+    wakeInterval = 2.0,            -- Intervalle entre les réveils de zones
     wallspeed = 50,
 }
 
@@ -77,13 +89,88 @@ end
 -- Attaque en rafale ultra-rapide
 local function rapidAttackBoss(boss, pet)
     if not CombatRF or not boss or not pet then return end
-    -- On attaque 5 fois en une fraction de seconde
     for i = 1, 5 do
         pcall(CombatRF.InvokeServer, CombatRF, "AttackEnemy", boss, pet)
     end
 end
 
--- ==== 6. Boucle principale d'auto-kill ====
+-- ==== 6. RÉVEIL DES ZONES (avec toutes les méthodes) ====
+local function wakeUpZones()
+    if not config.wakeUpZones then return end
+    
+    for _, bossName in ipairs(bossList) do
+        if bossEnabled[bossName] then
+            local zoneName = bossZoneMap[bossName]
+            if zoneName then
+                -- Méthode 1: ZonesRF avec RequestZoneMap
+                if ZonesRF then
+                    pcall(ZonesRF.InvokeServer, ZonesRF, "RequestZoneMap", zoneName)
+                    task.wait(0.05)
+                    pcall(ZonesRF.InvokeServer, ZonesRF, "RequestZoneMap", bossName)
+                    task.wait(0.05)
+                end
+                
+                -- Méthode 2: BossesEvent
+                if BossesEvent then
+                    pcall(BossesEvent.FireServer, BossesEvent, zoneName)
+                    task.wait(0.05)
+                    pcall(BossesEvent.FireServer, BossesEvent, bossName)
+                    task.wait(0.05)
+                    pcall(BossesEvent.FireServer, BossesEvent, zoneName, bossName)
+                    task.wait(0.05)
+                end
+                
+                -- Méthode 3: ZonesRE
+                if ZonesRE then
+                    pcall(ZonesRE.FireServer, ZonesRE, zoneName)
+                    task.wait(0.05)
+                    pcall(ZonesRE.FireServer, ZonesRE, bossName)
+                    task.wait(0.05)
+                end
+                
+                -- Méthode 4: Téléportation dans la zone
+                if config.autoMove then
+                    pcall(teleportToZone, zoneName)
+                    task.wait(0.05)
+                end
+            end
+        end
+    end
+end
+
+-- ==== 7. TENTATIVE DE SPAWN DIRECT ====
+local function attemptSpawnBosses()
+    if not config.spawnAttempt then return end
+    
+    for _, bossName in ipairs(bossList) do
+        if bossEnabled[bossName] then
+            local zoneName = bossZoneMap[bossName]
+            if zoneName and BossesEvent then
+                -- Toutes les combinaisons possibles
+                local combos = {
+                    {zoneName},
+                    {bossName},
+                    {zoneName, bossName},
+                    {"Spawn", zoneName},
+                    {"Spawn", bossName},
+                    {"Summon", zoneName},
+                    {"Summon", bossName},
+                    {"Activate", zoneName},
+                    {"Activate", bossName},
+                    {zoneName, "Spawn"},
+                    {bossName, "Spawn"},
+                }
+                for _, args in ipairs(combos) do
+                    pcall(BossesEvent.FireServer, BossesEvent, table.unpack(args))
+                    task.wait(0.02)
+                end
+                task.wait(0.1)
+            end
+        end
+    end
+end
+
+-- ==== 8. AUTO-KILL PRINCIPAL ====
 local function killAllBosses()
     if not config.autoKill then return end
     
@@ -100,7 +187,7 @@ local function killAllBosses()
                 -- Si téléportation activée, on se déplace dans la zone
                 if config.autoMove then
                     pcall(teleportToZone, zoneName)
-                    task.wait(0.05)
+                    task.wait(0.02)
                 end
                 
                 local enemies = zone:FindFirstChild("Enemies")
@@ -119,17 +206,15 @@ local function killAllBosses()
         end
     end
     
-    if killedCount > 0 then
-        -- Notification discrète toutes les 5 kills
-        if killedCount % 5 == 0 then
-            notify("Auto-Kill", killedCount .. " boss tués cette session", 1)
-        end
+    if killedCount > 0 and killedCount % 5 == 0 then
+        notify("Auto-Kill", killedCount .. " boss tués cette session", 1)
     end
 end
 
--- ==== 7. Boucle principale ====
+-- ==== 9. Boucle principale ====
 local active = false
 local mainThread = nil
+local wakeTimer = 0
 
 local function start()
     if active then return end
@@ -139,11 +224,22 @@ local function start()
     end
     active = true
     mainThread = task.spawn(function()
-        local cycleCount = 0
         while active do
-            pcall(killAllBosses)
-            cycleCount = cycleCount + 1
-            -- Petite pause pour ne pas surcharger le serveur
+            -- 1. Réveil des zones (toutes les X secondes)
+            if config.wakeUpZones then
+                pcall(wakeUpZones)
+            end
+            
+            -- 2. Tentative de spawn direct
+            if config.spawnAttempt then
+                pcall(attemptSpawnBosses)
+            end
+            
+            -- 3. Auto-Kill
+            if config.autoKill then
+                pcall(killAllBosses)
+            end
+            
             task.wait(0.01)
         end
     end)
@@ -156,11 +252,11 @@ local function stop()
     notify("Auto-Kill", "Arrêté.", 2)
 end
 
--- ==== 8. Interface Rayfield ====
+-- ==== 10. Interface Rayfield ====
 local win = Rayfield:CreateWindow({
     Name = "Auto-Kill Ultra",
     LoadingTitle = "Pet Swarm Sim",
-    LoadingSubtitle = "Optimisé pour le respawn",
+    LoadingSubtitle = "Avec réveil des zones",
     ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "AutoKill" },
     Theme = "Amethyst"
 })
@@ -174,6 +270,7 @@ mainTab:CreateSection("Status")
 local statusLabel = mainTab:CreateLabel("Status: Arrêté")
 local killLabel = mainTab:CreateLabel("Auto-Kill: OFF")
 local moveLabel = mainTab:CreateLabel("Téléportation: OFF")
+local wakeLabel = mainTab:CreateLabel("Réveil zones: OFF")
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -181,19 +278,25 @@ task.spawn(function()
             statusLabel:Set("Status: Actif")
             killLabel:Set("Auto-Kill: " .. (config.autoKill and "ON" or "OFF"))
             moveLabel:Set("Téléportation: " .. (config.autoMove and "ON" or "OFF"))
+            wakeLabel:Set("Réveil zones: " .. (config.wakeUpZones and "ON" or "OFF"))
         else
             statusLabel:Set("Status: Arrêté")
             killLabel:Set("Auto-Kill: OFF")
             moveLabel:Set("Téléportation: OFF")
+            wakeLabel:Set("Réveil zones: OFF")
         end
     end
 end)
 
 local bossTab = win:CreateTab("Bosses")
-bossTab:CreateSection("Configuration")
+bossTab:CreateSection("Auto-Kill")
 bossTab:CreateToggle({ Name = "⚡ Auto-Kill (ultra rapide)", CurrentValue = config.autoKill, Callback = function(v) config.autoKill = v end })
-bossTab:CreateToggle({ Name = "🚀 Téléportation entre zones", CurrentValue = config.autoMove, Callback = function(v) config.autoMove = v end })
 bossTab:CreateSlider({ Name = "Délai entre attaques (s)", Range = {0.001, 0.01}, Increment = 0.001, CurrentValue = config.killDelay, Callback = function(v) config.killDelay = v end })
+
+bossTab:CreateSection("Réveil des zones")
+bossTab:CreateToggle({ Name = "🔄 Réveil des zones (ZonesRF)", CurrentValue = config.wakeUpZones, Callback = function(v) config.wakeUpZones = v end })
+bossTab:CreateToggle({ Name = "🧪 Tentative de spawn (BossesEvent)", CurrentValue = config.spawnAttempt, Callback = function(v) config.spawnAttempt = v end })
+bossTab:CreateToggle({ Name = "🚀 Téléportation entre zones", CurrentValue = config.autoMove, Callback = function(v) config.autoMove = v end })
 
 bossTab:CreateSection("Boss à cibler")
 bossTab:CreateToggle({ Name = "Tous les boss", CurrentValue = true, Callback = function(v) 
@@ -202,6 +305,23 @@ end })
 for _, name in ipairs(bossList) do
     bossTab:CreateToggle({ Name = name, CurrentValue = bossEnabled[name], Callback = function(v) bossEnabled[name] = v end })
 end
+
+-- Boutons de test
+bossTab:CreateSection("Tests manuels")
+bossTab:CreateButton({ Name = "🧪 Réveiller toutes les zones", Callback = function()
+    notify("Test", "Réveil des zones...", 2)
+    pcall(wakeUpZones)
+end })
+bossTab:CreateButton({ Name = "🧪 Tenter spawn Naga", Callback = function()
+    notify("Test", "Tentative spawn Naga...", 2)
+    if BossesEvent then
+        pcall(BossesEvent.FireServer, BossesEvent, "Zone2B1")
+        task.wait(0.2)
+        pcall(BossesEvent.FireServer, BossesEvent, "Naga")
+        task.wait(0.2)
+        pcall(BossesEvent.FireServer, BossesEvent, "Zone2B1", "Naga")
+    end
+end })
 
 -- Onglet Misc
 local miscTab = win:CreateTab("Misc")
@@ -239,4 +359,4 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
-notify("Auto-Kill", "Script chargé ! Activez 'Auto-Kill' pour tuer les boss instantanément.", 3)
+notify("Auto-Kill", "Script chargé ! Activez 'Auto-Kill' et 'Réveil des zones' pour un farm optimal.", 3)
