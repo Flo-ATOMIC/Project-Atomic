@@ -88,8 +88,9 @@ local config = {
     killSpeed = 0.001,
     eggSpeed = 0.001,
     nestSpeed = 0.001,
-    hatchCount = 50,  -- Nombre d'oeufs à éclore par cycle
-    plantCount = 50,  -- Nombre de plantations par zone
+    hatchCount = 200,     -- Nombre d'oeufs par cycle Hatch
+    hatchCycles = 5,      -- Nombre de cycles par frame
+    plantCount = 50,
     wallspeed = 50,
 }
 
@@ -168,16 +169,22 @@ local function wakeUpZones()
     end
 end
 
--- ==== 9. AUTO-HATCH ULTRA RAPIDE (SANS DELAI) ====
+-- ==== 9. AUTO-HATCH - 1000+ OEUFS PAR SECONDE ====
 local function autoHatch()
     if not config.autoHatch or not HatchEggEvent then return end
-    -- Appel en boucle très rapide sans wait
-    for i = 1, config.hatchCount do
-        pcall(HatchEggEvent.FireServer, HatchEggEvent)
+    
+    -- Boucle principale
+    for cycle = 1, config.hatchCycles do
+        -- Appels en rafale sans aucun délai
+        for i = 1, config.hatchCount do
+            pcall(HatchEggEvent.FireServer, HatchEggEvent)
+        end
+        -- Micro-pause pour éviter le crash (0.0001s)
+        task.wait(0.0001)
     end
 end
 
--- ==== 10. AUTO-PLANT ULTRA RAPIDE ====
+-- ==== 10. AUTO-PLANT ====
 local function autoPlant()
     if not config.autoPlant or not PlantEggEvent then return end
     for zoneName, enabled in pairs(eggsSelected) do
@@ -275,13 +282,25 @@ end
 -- ==== 16. BOUCLE PRINCIPALE ====
 local active = false
 local mainThread = nil
-local killCounter = 0
+local hatchCounter = 0
+local lastHatchNotify = 0
 
 local function mainLoop()
     while active do
-        -- HATCH ULTRA RAPIDE (exécuté en premier et très souvent)
+        local startTime = os.clock()
+        
+        -- HATCH ULTRA RAPIDE (exécuté en premier)
         if config.autoHatch then 
-            pcall(autoHatch) 
+            pcall(autoHatch)
+            hatchCounter = hatchCounter + (config.hatchCount * config.hatchCycles)
+        end
+        
+        -- Notification toutes les secondes
+        local now = os.clock()
+        if now - lastHatchNotify >= 1 and hatchCounter > 0 then
+            notify("Hatch Speed", hatchCounter .. " oeufs/secondes", 1)
+            lastHatchNotify = now
+            hatchCounter = 0
         end
         
         -- Réveil des zones
@@ -307,7 +326,10 @@ local function mainLoop()
         -- Vitesse
         pcall(setSpeed)
         
-        task.wait(0.015)
+        -- Calcul du temps de cycle
+        local cycleTime = os.clock() - startTime
+        local waitTime = math.max(0.001, 0.02 - cycleTime)
+        task.wait(waitTime)
     end
 end
 
@@ -318,11 +340,12 @@ local function start()
         return
     end
     active = true
-    killCounter = 0
+    hatchCounter = 0
+    lastHatchNotify = 0
     wakeTimer = 0
     pcall(setupDoubleJump)
     mainThread = task.spawn(mainLoop)
-    notify("Project-Atomic", "Farm démarré !", 2)
+    notify("Project-Atomic", "Farm démarré ! Hatch 1000+/s", 2)
 end
 
 local function stop()
@@ -335,7 +358,7 @@ end
 local win = Rayfield:CreateWindow({
     Name = "Project-Atomic",
     LoadingTitle = "Pet Swarm Sim",
-    LoadingSubtitle = "Hatch Ultra-Rapide",
+    LoadingSubtitle = "Hatch 1000+ Oeufs/s",
     ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "AtomicConfig" },
     Theme = "Amethyst"
 })
@@ -348,8 +371,8 @@ mainTab:CreateButton({ Name = "⏹ Arrêter", Callback = stop })
 
 mainTab:CreateSection("Statut")
 local statusLabel = mainTab:CreateLabel("Status: Arrêté")
+local hatchSpeedLabel = mainTab:CreateLabel("Hatch: 0 oeufs/s")
 local killLabel = mainTab:CreateLabel("Boss: OFF")
-local hatchLabel = mainTab:CreateLabel("Hatch: OFF")
 local plantLabel = mainTab:CreateLabel("Plant: OFF")
 local nestLabel = mainTab:CreateLabel("Nests: OFF")
 
@@ -359,7 +382,6 @@ task.spawn(function()
         if active then
             statusLabel:Set("Status: Actif")
             killLabel:Set("Boss: " .. (config.autoKill and "ON" or "OFF"))
-            hatchLabel:Set("Hatch: " .. (config.autoHatch and "ON" or "OFF"))
             plantLabel:Set("Plant: " .. (config.autoPlant and "ON" or "OFF"))
             nestLabel:Set("Nests: " .. (config.autoNests and "ON" or "OFF"))
         else
@@ -384,16 +406,17 @@ for _, name in ipairs(bossList) do
     bossTab:CreateToggle({ Name = name, CurrentValue = bossEnabled[name], Callback = function(v) bossEnabled[name] = v end })
 end
 
--- Onglet Eggs (avec options de vitesse)
+-- Onglet Eggs (avec options de vitesse extrême)
 local eggTab = win:CreateTab("Eggs")
-eggTab:CreateSection("Auto Eggs")
+eggTab:CreateSection("Auto Hatch - 1000+ Oeufs/s")
 eggTab:CreateToggle({ Name = "🥚 Auto-Hatch (ULTRA RAPIDE)", CurrentValue = config.autoHatch, Callback = function(v) config.autoHatch = v end })
 eggTab:CreateToggle({ Name = "🌱 Auto-Plant", CurrentValue = config.autoPlant, Callback = function(v) config.autoPlant = v end })
 eggTab:CreateToggle({ Name = "🪹 Auto-Nests", CurrentValue = config.autoNests, Callback = function(v) config.autoNests = v end })
 
-eggTab:CreateSection("Vitesses")
-eggTab:CreateSlider({ Name = "Nombre d'oeufs par cycle Hatch", Range = {10, 100}, Increment = 5, CurrentValue = config.hatchCount, Callback = function(v) config.hatchCount = v end })
-eggTab:CreateSlider({ Name = "Nombre de plantations par zone", Range = {10, 100}, Increment = 5, CurrentValue = config.plantCount, Callback = function(v) config.plantCount = v end })
+eggTab:CreateSection("Vitesses Extrêmes")
+eggTab:CreateSlider({ Name = "Oeufs par cycle Hatch", Range = {50, 500}, Increment = 10, CurrentValue = config.hatchCount, Callback = function(v) config.hatchCount = v end })
+eggTab:CreateSlider({ Name = "Cycles Hatch par frame", Range = {1, 10}, Increment = 1, CurrentValue = config.hatchCycles, Callback = function(v) config.hatchCycles = v end })
+eggTab:CreateSlider({ Name = "Plantations par zone", Range = {10, 100}, Increment = 5, CurrentValue = config.plantCount, Callback = function(v) config.plantCount = v end })
 eggTab:CreateSlider({ Name = "Vitesse Plant (s)", Range = {0.001, 0.01}, Increment = 0.001, CurrentValue = config.eggSpeed, Callback = function(v) config.eggSpeed = v end })
 eggTab:CreateSlider({ Name = "Vitesse Nests (s)", Range = {0.001, 0.01}, Increment = 0.001, CurrentValue = config.nestSpeed, Callback = function(v) config.nestSpeed = v end })
 
@@ -447,4 +470,4 @@ for _, pet in ipairs(sacrificePets) do
     sacrificeTab:CreateButton({ Name = pet, Callback = function() sacrificePet(pet) end })
 end
 
-notify("Project-Atomic", "Script chargé ! Hatch Ultra-Rapide activable.", 3)
+notify("Project-Atomic", "Script chargé ! Hatch 1000+ oeufs/seconde possible.", 3)
