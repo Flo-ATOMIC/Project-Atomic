@@ -1,88 +1,223 @@
--- Script de débogage : Liste tous les remotes dans ReplicatedStorage
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace") -- on peut aussi scanner Workspace au cas où
-
-local function getAllRemotes(container, path)
-    path = path or ""
-    local remotes = {}
-    for _, child in ipairs(container:GetChildren()) do
-        local childPath = path .. "/" .. child.Name
-        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-            table.insert(remotes, {
-                name = child.Name,
-                path = childPath,
-                class = child.ClassName,
-                ref = child
-            })
-        end
-        -- Récursion dans les sous-dossiers
-        local sub = getAllRemotes(child, childPath)
-        for _, r in ipairs(sub) do
-            table.insert(remotes, r)
-        end
-    end
-    return remotes
-end
-
--- Scanner ReplicatedStorage
-print("=== SCAN DE REPLICATEDSTORAGE ===")
-local allRemotes = getAllRemotes(ReplicatedStorage, "ReplicatedStorage")
-for _, r in ipairs(allRemotes) do
-    print(r.path, "(" .. r.class .. ")")
-end
-print("Total remotes trouvés dans ReplicatedStorage : " .. #allRemotes)
-
--- Optionnel : Scanner Workspace (moins probable mais on sait jamais)
-print("\n=== SCAN DE WORKSPACE (pour remotes) ===")
-local workspaceRemotes = getAllRemotes(Workspace, "Workspace")
-for _, r in ipairs(workspaceRemotes) do
-    print(r.path, "(" .. r.class .. ")")
-end
-print("Total remotes trouvés dans Workspace : " .. #workspaceRemotes)
-
--- Notification dans le jeu
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
 local StarterGui = game:GetService("StarterGui")
-StarterGui:SetCore("SendNotification", {
-    Title = "Remote Scanner",
-    Text = "Scan terminé. " .. #allRemotes .. " remotes trouvés. Voir console F9.",
-    Duration = 5
+
+-- ==== 1. Notifications et logs ====
+local function notify(title, text, duration)
+    duration = duration or 3
+    pcall(function() StarterGui:SetCore("SendNotification", { Title = title, Text = text, Duration = duration }) end)
+end
+
+local function log(...)
+    print("[Debug]", ...)
+end
+
+-- ==== 2. Récupération des remotes candidats ====
+local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local Events = Remotes and Remotes:FindFirstChild("Events")
+local Functions = Remotes and Remotes:FindFirstChild("Functions")
+
+-- Liste des remotes intéressants (on ajoute aussi CombatRF pour les attaques)
+local candidateRemotes = {
+    { name = "BossesEvent", remote = Events and Events:FindFirstChild("BossesEvent"), type = "Event" },
+    { name = "ZonesRE", remote = Events and Events:FindFirstChild("ZonesRE"), type = "Event" },
+    { name = "CombatRE", remote = Events and Events:FindFirstChild("CombatRE"), type = "Event" },
+    { name = "DamageRE", remote = Events and Events:FindFirstChild("DamageRE"), type = "Event" },
+    { name = "CombatRF", remote = Functions and Functions:FindFirstChild("CombatRF"), type = "Function" },
+    { name = "ZonesRF", remote = Functions and Functions:FindFirstChild("ZonesRF"), type = "Function" },
+}
+
+-- Filtrer ceux qui existent
+local availableRemotes = {}
+for _, info in ipairs(candidateRemotes) do
+    if info.remote then
+        table.insert(availableRemotes, info)
+        log("Remote trouvé:", info.name, "Type:", info.type)
+    end
+end
+
+-- ==== 3. Données des boss et zones ====
+local bossZoneMap = {
+    Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1", ["Tiki Monster"] = "Zone10B1",
+    ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
+    ["The Ethereal Everia"] = "Zone12B2", ["Hornet Boss"] = "SummerEventZoneB1",
+    ["The Ice Serpent"] = "WinterEventZoneB1", ["Great Sphinx"] = "ElementEventZoneB1",
+}
+local bossList = {
+    "Naga", "Lava Monster", "Ghost Pirate", "Tiki Monster", "The Frozen Ancient", "The Big 100M",
+    "The Ethereal Everia", "Hornet Boss", "The Ice Serpent", "Great Sphinx"
+}
+
+-- ==== 4. Fonction d'appel de remote ====
+local function callRemote(remote, args, isFunction)
+    if not remote then
+        notify("Erreur", "Remote introuvable", 2)
+        return false
+    end
+    local success, result
+    if isFunction then
+        success, result = pcall(remote.InvokeServer, remote, table.unpack(args))
+    else
+        success, result = pcall(remote.FireServer, remote, table.unpack(args))
+    end
+    if success then
+        log("Appel réussi sur", remote.Name, "avec arguments:", table.unpack(args))
+        notify("Succès", remote.Name .. " appelé avec " .. #args .. " argument(s)", 2)
+    else
+        log("Erreur sur", remote.Name, ":", result)
+        notify("Erreur", remote.Name .. " : " .. tostring(result), 3)
+    end
+    return success
+end
+
+-- ==== 5. Interface Rayfield ====
+local win = Rayfield:CreateWindow({
+    Name = "Project-Atomic Debug",
+    LoadingTitle = "Remote Tester",
+    LoadingSubtitle = "Boss Spawn Debug",
+    ConfigurationSaving = { Enabled = false },
+    Theme = "Amethyst"
 })
 
--- Petit outil supplémentaire : écouter les événements pour voir si BossEvent est utilisé
-local bossRemote = nil
-for _, r in ipairs(allRemotes) do
-    if r.name == "BossEvent" then
-        bossRemote = r.ref
-        break
+local debugTab = win:CreateTab("Debug Remotes")
+
+-- Sélection du remote
+debugTab:CreateSection("Sélection du remote")
+local remoteOptions = {}
+for _, info in ipairs(availableRemotes) do
+    table.insert(remoteOptions, info.name .. " (" .. info.type .. ")")
+end
+local selectedRemoteIndex = 1 -- par défaut le premier
+
+local dropdown = debugTab:CreateDropdown({
+    Name = "Remote à tester",
+    Options = remoteOptions,
+    CurrentOption = remoteOptions[1],
+    Callback = function(opt)
+        for i, info in ipairs(availableRemotes) do
+            if opt == info.name .. " (" .. info.type .. ")" then
+                selectedRemoteIndex = i
+                break
+            end
+        end
     end
+})
+
+-- Arguments
+debugTab:CreateSection("Arguments")
+local arg1Input = debugTab:CreateInput({
+    Name = "Argument 1 (ex: zone ou boss)",
+    PlaceholderText = "Zone2B1 ou Naga",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text) arg1 = text end
+})
+local arg2Input = debugTab:CreateInput({
+    Name = "Argument 2 (optionnel)",
+    PlaceholderText = "Naga ou nil",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text) arg2 = text end
+})
+
+-- Boutons rapides pour les zones
+debugTab:CreateSection("Zones rapides")
+local zoneButtons = {}
+for _, bossName in ipairs(bossList) do
+    local zoneName = bossZoneMap[bossName]
+    table.insert(zoneButtons, {boss = bossName, zone = zoneName})
+end
+-- On fait une grille de boutons (pas possible en colonnes, on les met en ligne)
+for _, btn in ipairs(zoneButtons) do
+    debugTab:CreateButton({
+        Name = btn.boss .. " (" .. btn.zone .. ")",
+        Callback = function()
+            arg1 = btn.zone
+            arg2 = btn.boss
+            notify("Prêt", "Zone: " .. arg1 .. ", Boss: " .. arg2, 2)
+        end
+    })
 end
 
-if bossRemote then
-    print("\n=== BossEvent trouvé ! ===")
-    print("Nom :", bossRemote.Name)
-    print("Type :", bossRemote.ClassName)
-    print("Chemin :", bossRemote:GetFullName())
-    
-    -- Si c'est un RemoteEvent, on peut écouter les appels
-    if bossRemote:IsA("RemoteEvent") then
-        local conn = bossRemote.OnServerEvent:Connect(function(player, ...)
-            print("[BOSS EVENT] Appel reçu de", player.Name, "avec arguments :", ...)
-        end)
-        print("Écoute de BossEvent activée. Déclenchez un boss manuellement pour voir les arguments.")
-        task.wait(15) -- écoute pendant 15 secondes
-        conn:Disconnect()
-        print("Écoute terminée.")
-    else
-        -- RemoteFunction : on peut essayer de hook OnServerInvoke (mais attention, cela peut bloquer)
-        print("C'est un RemoteFunction. Pour voir les arguments, il faudrait modifier le script du jeu.")
+-- Bouton d'appel
+debugTab:CreateSection("Action")
+debugTab:CreateButton({
+    Name = "🚀 Envoyer la requête",
+    Callback = function()
+        local info = availableRemotes[selectedRemoteIndex]
+        if not info then
+            notify("Erreur", "Aucun remote sélectionné", 2)
+            return
+        end
+        local args = {}
+        if arg1 and arg1 ~= "" then table.insert(args, arg1) end
+        if arg2 and arg2 ~= "" then table.insert(args, arg2) end
+        -- Si aucun argument, on envoie quand même un appel sans argument
+        callRemote(info.remote, args, info.type == "Function")
     end
-else
-    print("Aucun remote nommé 'BossEvent' trouvé.")
-end
+})
 
--- Permettre de copier la sortie console facilement (affiche un message)
-print("\n=== COPIEZ CES LIGNES POUR L'ANALYSE ===")
-for _, r in ipairs(allRemotes) do
-    print(r.path)
+-- Bouton "Tester toutes les combinaisons" pour BossesEvent
+debugTab:CreateButton({
+    Name = "🧪 Tester BossesEvent avec toutes les zones",
+    Callback = function()
+        local bossEvent = Events and Events:FindFirstChild("BossesEvent")
+        if not bossEvent then
+            notify("Erreur", "BossesEvent introuvable", 2)
+            return
+        end
+        for _, bossName in ipairs(bossList) do
+            local zoneName = bossZoneMap[bossName]
+            -- Test avec zone seule
+            callRemote(bossEvent, {zoneName}, false)
+            task.wait(0.3)
+            -- Test avec boss seul
+            callRemote(bossEvent, {bossName}, false)
+            task.wait(0.3)
+            -- Test avec les deux
+            callRemote(bossEvent, {zoneName, bossName}, false)
+            task.wait(0.3)
+            -- Test sans argument
+            callRemote(bossEvent, {}, false)
+            task.wait(0.3)
+        end
+        notify("Test terminé", "Voir console pour les résultats", 3)
+    end
+})
+
+-- Bouton pour ZonesRE
+debugTab:CreateButton({
+    Name = "🧪 Tester ZonesRE avec toutes les zones",
+    Callback = function()
+        local zonesRE = Events and Events:FindFirstChild("ZonesRE")
+        if not zonesRE then
+            notify("Erreur", "ZonesRE introuvable", 2)
+            return
+        end
+        for _, bossName in ipairs(bossList) do
+            local zoneName = bossZoneMap[bossName]
+            callRemote(zonesRE, {zoneName}, false)
+            task.wait(0.3)
+            callRemote(zonesRE, {bossName}, false)
+            task.wait(0.3)
+            callRemote(zonesRE, {zoneName, bossName}, false)
+            task.wait(0.3)
+        end
+        notify("Test terminé", "Voir console", 3)
+    end
+})
+
+-- Section informations
+debugTab:CreateSection("Infos")
+debugTab:CreateLabel("Remotes disponibles: " .. #availableRemotes)
+debugTab:CreateLabel("BossesEvent: " .. tostring(Events and Events:FindFirstChild("BossesEvent") ~= nil))
+debugTab:CreateLabel("ZonesRE: " .. tostring(Events and Events:FindFirstChild("ZonesRE") ~= nil))
+
+-- ==== 6. Log initial ====
+log("=== Script Debug chargé ===")
+log("Remotes disponibles:", #availableRemotes)
+for _, info in ipairs(availableRemotes) do
+    log(" - " .. info.name .. " (" .. info.type .. ")")
 end
-print("=== FIN ===")
+notify("Debug", "Script prêt. Utilisez l'onglet Debug Remotes.", 3)
