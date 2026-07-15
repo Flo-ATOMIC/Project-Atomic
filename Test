@@ -1,319 +1,206 @@
-19:01:05 Replicated Storage/Remotes/Events/CancelEggEvent (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/FoodRE (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/CombatRE (RemoteEvent)
-
-2585
-
-19:01:05 Replicated Storage/Remotes/Events/CollectionRE (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/EquipBackpackEvent (RemoteEvent)
-
-3310
-
-19:01:05 Replicated Storage/Remotes/Events/BuyBackpackEvent (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/SelectQuest (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/QuestCompleted (RemoteEvent)
-
-19:01:05 ReplicatedStorage/Remotes/Events/GiveQuest (RemoteEvent)
-
-S Shop
-
-19:01:05 ReplicatedStorage/Remotes/Events/GivePodium Event (RemoteEvent)
-
-19:01:05 ReplicatedStorage/Remotes/Events/UpgradePodium (RemoteEvent)
-
-19:01:05 ReplicatedStorage/Remotes/Events/TutorialComplete (RemoteEvent)
-
-19:01:05 ReplicatedStorage/Remotes/Events/MoveMonsterEvent (RemoteEvent)
-
-19:01:05 ReplicatedStorage/Remotes/Events/AutoDeleteEvent (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/Pets (RemoteEvent)
-
-19:01:05 ReplicatedStorage/Remotes/Events/DataPacketReceiverReady (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/UpdateDataVersion (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/DataLoaded (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/DataUpdater (RemoteEvent)
-19:01:05 Replicated Storage/Remotes/Events/DataUpdater (RemoteEvent)
-
-19:01:05 ReplicatedStorage/Remotes/Events/IndexRewards Event (RemoteEvent)
-
-2585
-
-19:01:05 Replicated Storage/Remotes/Events/ChangeSettingEvent (RemoteEvent)
-
-19:01:05 ReplicatedStorage/Remotes/Events/Unequip MonsterEvent (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/SellAllMonstersEvent (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/SellMonsterEvent (RemoteEvent)
-
-3310
-
-19:01:05 Replicated Storage/Remotes/Events/Egg DroppedRE (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/RebirthRE (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/UpdateData (RemoteEvent)
-
-S Shop
-
-19:01:05 ReplicatedStorage/Remotes/Events/SendData (RemoteEvent)
-
-19:01:05 Replicated Storage/Remotes/Events/RequestData (RemoteEvent)
-
-19:01:05 ReplicatedStorage/Remotes/Functions/ZonesRF (RemoteFunction)
-
-19:01:05 Replicated Storage/Remotes/Functions/Sacrifice Function (RemoteFunction)
-
-19:01:05 Replicated Storage/Remotes/Functions/Reward ChestRF (RemoteFunction)
-
-19:01:05 Replicated Storage/Remotes/Functions/EnterCode (RemoteFunction)
-
-19:01:05 Replicated Storage/Remotes/Functions/CombatRF (RemoteFunction)
-
-19:01:05 ReplicatedStorage/Remotes/Functions/CollectionRF (RemoteFunction)
-
-19:01:05 Replicated Storage/Remotes/Functions/UpgradeMonsterFunction (RemoteFunction
-
-19:01:05 Replicated Storage/DefaultChatSystemChatEvents/UnMutePlayerRequest
-19:01:05 ReplicatedStorage/DefaultChatSystemChatEvents/UnMutePlayerRequest (RemoteFunction)
-
-19:01:05 Replicated Storage/DefaultChatSystemChatEvents/MutePlayerRequest (RemoteFunction)
-
-2585
-
-19:01:05 Replicated Storage/DefaultChatSystemChatEvents/GetInitDataRequest (Remote Function)
-
-3310
-
-19:01:05 ReplicatedStorage/DefaultChatSystemChatEvents/SetBlockedUserldsRequest (RemoteEvent)
-
-19:01:05 ReplicatedStorage/DefaultChatSystemChatEvents/SayMessageRequest (RemoteEvent)
-
-S Shop
-
-19:01:05 ReplicatedStorage/DefaultChatSystemChatEvents/Channel NameColorUpdated (RemoteEvent)
-
-TRADE
-
-19:01:05 Replicated Storage/DefaultChatSystemChatEvents/OnMainChannelSet
-
-(RemoteEvent)
-
-19:01:05 Replicated Storage/DefaultChatSystemChatEvents/OnUnmuted (RemoteEvent)
-
-19:01:05 Replicated Storage/DefaultChatSystemChatEvents//DefaultChatSystemChatEvents/OnMuted (RemoteEvent)
-
-X
-
-19:01:05 ReplicatedStorage/DefaultChatSystemChatEvents/OnChannelLeft (RemoteEvent)
-
-19:01:05 ReplicatedStorage/DefaultChatSystemChatEvents/OnChannel Joined (RemoteEven
-
-19:01:05 Replicated Storage/DefaultChatSystemChatEvents/OnNew SystemMessage
-19:01:05 ReplicatedStorage/DefaultChatSystemChatEvents/OnNew SystemMessage (RemoteEvent)
-
-2585
-
-19:01:05 Replicated Storage/DefaultChatSystemChatEvents/OnMessageDoneFiltering (RemoteEvent)
-
-19:01:05 Replicated Storage/DefaultChatSystemChatEvents/OnNewMessage (RemoteEvent)
-
-19:01:05 Total remotes trouvés dans Replicated Storage: 67
-
-3310
-
-19:01:05
-
-To Nest
-
-=== SCAN DE WORKSPACE (pour remotes) ===
-
-19:01:05 Total remotes trouvés dans Workspace: 0
-
-19:01:05 Aucun remote nommé 'BossEvent' trouvé.
-
-S Shop
-
-19:01:05
-
-=== COPIEZ CES LIGNES POUR L'ANALYSE ===
-
-19:01:05 Replicated Storage/Remotes/Events/GemStoreEvent
-
-19:01:05 ReplicatedStorage/Remotes/Events/DropEvent
-
-19:01:05 ReplicatedStorage/Remotes/Events/Summer Daily RewardEvent
-
-19:01:05 Replicated Storage/Remotes/Events/BossesEvent
-
-19:01:05 Replicated Storage/Remotes/Events/DamageRE
-
-19:01:05 ReplicatedStorage/Remotes/Events/ZonesRE
-
-19:01:05 Replicated Storage/Remotes/Events/TradingEvent
-19:01:05 ReplicatedStorage/Remotes/Events/TradingEvent
-
-19:01:05 Replicated Storage/Remotes/Events/RewardsEvent
-
-19:01:05 ReplicatedStorage/Remotes/Events/EquipNestEvent
-
-2585
-
-19:01:05 Replicated Storage/Remotes/Events/ScytheRE
-
-19:01:05 Replicated Storage/Remotes/Events/EquipScytheEvent
-
-19:01:05 ReplicatedStorage/Remotes/Events/AscendEvent
-
-3310
-
-S
-
-19:01:05 ReplicatedStorage/Remotes/Events/PlantEggEvent
-
-19:01:05 Replicated Storage/Remotes/Events/DeleteEggEvent
-
-19:01:05 Replicated Storage/Remotes/Events/HatchEggEvent
-
-19:01:05 Replicated Storage/Remotes/Events/FeedEggEvent
-
-19:01:05 Replicated Storage/Remotes/Events/HatchAnimationEvent
-
-19:01:05 Replicated Storage/Remotes/Events/CancelEggEvent
-
-19:01:05 Replicated Storage/Remotes/Events/FoodRE
-
-19:01:05 Replicated Storage/Remotes/Events/CombatRE
-
-19:01:05 Replicated Storage/Remotes/Events/CollectionRE
-
-19:01:05 Replicated Storage/Remotes/Events/EquipBackpackEvent
-
-19:01:05 Replicated Storage/Remotes/Events/BuyBackpackEvent
-
-19:01:05 Replicated Storage/Remotes/Events/SelectQuest
-
-19:01:05 ReplicatedStorage/Remotes/Events/QuestCompleted
-19:01:05 Replicated Storage/Remotes/Events/QuestCompleted
-
-19:01:06 Replicated Storage/Remotes/Events/GiveQuest
-
-19:01:06 ReplicatedStorage/Remotes/Events/GivePodiumEvent
-
-2585
-
-19:01:06 Replicated Storage/Remotes/Events/UpgradePodium
-
-19:01:06 Replicated Storage/Remotes/Events/TutorialComplete
-
-19:01:06 Replicated Storage/Remotes/Events/MoveMonster Event
-
-3310
-
-19:01:06 Replicated Storage/Remotes/Events/AutoDeleteEvent
-
-19:01:06 Replicated Storage/Remotes/Events/Pets
-
-19:01:06 Replicated Storage/Remotes/Events/Data PacketReceiver Ready
-
-S Shop
-
-19:01:06 Replicated Storage/Remotes/Events/UpdateDataVersion
-
-19:01:06 Replicated Storage/Remotes/Events/DataLoaded
-
-19:01:06 Replicated Storage/Remotes/Events/DataUpdater
-
-19:01:06 ReplicatedStorage/Remotes/Events/IndexRewardsEvent
-
-19:01:06 Replicated Storage/Remotes/Events/ChangeSettingEvent
-
-19:01:06 Replicated Storage/Remotes/Events/Unequip MonsterEvent
-
-19:01:06 Replicated Storage/Remotes/Events/SellAllMonstersEvent
-
-19:01:06 Replicated Storage/Remotes/Events/SellMonsterEvent
-
-19:01:06 ReplicatedStorage/Remotes/Events/EggDroppedRE
-
-19:01:06 Replicated Storage/Remotes/Events/RebirthRE
-19:01:06 Replicated Storage/Remotes/Events/RebirthRE
-
-19:01:06 Replicated Storage/Remotes/Events/UpdateData
-
-19:01:06 Replicated Storage/Remotes/Events/SendData
-
-2585
-
-19:01:06 Replicated Storage/Remotes/Events/RequestData
-
-19:01:06 Replicated Storage/Remotes/Functions/ZonesRF
-
-19:01:06 Replicated Storage/Remotes/Functions/Sacrifice Function
-
-3310
-
-19:01:06 Replicated Storage/Remotes/Functions/RewardChestRF
-
-19:01:06 Replicated Storage/Remotes/Functions/EnterCode
-
-19:01:06 Replicated Storage/Remotes/Functions/CombatRF
-
-S Shop
-
-19:01:06 Replicated Storage/Remotes/Functions/CollectionRF
-
-19:01:06 ReplicatedStorage/Remotes/Functions/UpgradeMonsterFunction
-
-19:01:06 ReplicatedStorage/DefaultChatSystemChatEvents/UnMutePlayerRequest
-
-TRADE
-
-19:01:06 ReplicatedStorage/DefaultChatSystemChatEvents/MutePlayerRequest
-
-19:01:06 ReplicatedStorage/DefaultChatSystemChatEvents/GetInitDataRequest
-
-19:01:06 Replicated Storage/DefaultChatSystemChatEvents/SetBlocked UserldsRequest
-
-19:01:06 ReplicatedStorage/DefaultChatSystemChatEvents/SayMessageRequest
-
-19:01:06 Replicated Storage/DefaultChatSystemChatEvents/Channel NameColorUpdated
-
-19:01:06 ReplicatedStorage/DefaultChatSystemChatEvents/OnMainChannelSet
-
-19:01:06 ReplicatedStorage/DefaultChatSystemChatEvents/OnUnmuted
-
-19:01:06 Replicated Storage/DefaultChatSystemChatEvents/OnUnmuted
-
-Teleport
-
-Settings
-
-19:01:06 ReplicatedStorage/DefaultChatSystemChatEvents/OnMuted
-
-19:01:06 ReplicatedStorage/DefaultChatSystemChatEvents/OnChannelLeft
-
-258
-
-19:01:06 Replicated Storage/DefaultChatSystemChatEvents/OnChannelJoined
-
-19:01:06 ReplicatedStorage/DefaultChatSystemChatEvents/OnNewSystemMessage
-
-19:01:06 Replicated Storage/DefaultChatSystemChatEvents/OnMessageDoneFiltering
-
-3310
-
-To Nest
-
-19:01:06 Replicated Storage/DefaultChatSystemChatEvents/OnNewMessage
-
-19:01:06 === FIN ===
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local StarterGui = game:GetService("StarterGui")
+
+-- ==== 1. Notifications ====
+local function notify(title, text, duration)
+    duration = duration or 3
+    pcall(function()
+        StarterGui:SetCore("SendNotification", { Title = title, Text = text, Duration = duration })
+    end)
+end
+
+local function log(...)
+    print("[BossTest]", ...)
+end
+
+-- ==== 2. Récupération des remotes ====
+local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local Events = Remotes and Remotes:FindFirstChild("Events")
+local BossesEvent = Events and Events:FindFirstChild("BossesEvent")
+local CombatRemote = (Remotes and Remotes:FindFirstChild("Functions") and Remotes.Functions:FindFirstChild("CombatRF"))
+
+log("BossesEvent trouvé ?", BossesEvent ~= nil)
+log("CombatRF trouvé ?", CombatRemote ~= nil)
+
+if not BossesEvent then
+    notify("Erreur", "BossesEvent non trouvé !", 5)
+    return
+end
+
+-- ==== 3. Données des boss ====
+local bossZoneMap = {
+    Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1", ["Tiki Monster"] = "Zone10B1",
+    ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
+    ["The Ethereal Everia"] = "Zone12B2", ["Hornet Boss"] = "SummerEventZoneB1",
+    ["The Ice Serpent"] = "WinterEventZoneB1", ["Great Sphinx"] = "ElementEventZoneB1",
+}
+local bossList = {
+    "Naga", "Lava Monster", "Ghost Pirate", "Tiki Monster", "The Frozen Ancient", "The Big 100M",
+    "The Ethereal Everia", "Hornet Boss", "The Ice Serpent", "Great Sphinx"
+}
+
+-- ==== 4. Fonction pour tester un appel ====
+local function testSpawn(remote, args, description)
+    if not remote then
+        log("Remote nil, impossible de tester")
+        return false
+    end
+    local success, err = pcall(function()
+        remote:FireServer(table.unpack(args))
+    end)
+    if success then
+        log("[SUCCESS]", description, "avec args:", table.unpack(args))
+        notify("Test OK", description, 2)
+        return true
+    else
+        log("[ERROR]", description, ":", err)
+        return false
+    end
+end
+
+-- ==== 5. Fonction pour vérifier l'apparition d'un boss ====
+local function checkBossAppeared(zoneName, bossName)
+    local zone = Workspace.Zones:FindFirstChild(zoneName)
+    if not zone then return false end
+    local enemies = zone:FindFirstChild("Enemies")
+    if not enemies then return false end
+    return enemies:FindFirstChild(bossName) ~= nil
+end
+
+-- ==== 6. Tests automatiques ====
+local function runAllTests()
+    log("=== DÉBUT DES TESTS ===")
+    
+    -- Tester avec différentes combinaisons
+    local testCases = {
+        {args = {"Spawn"}, desc = "Spawn"},
+        {args = {"Summon"}, desc = "Summon"},
+        {args = {"Boss"}, desc = "Boss"},
+        {args = {"Naga"}, desc = "Naga"},
+        {args = {"Zone2B1"}, desc = "Zone2B1"},
+        {args = {"Naga", "Zone2B1"}, desc = "Naga+Zone"},
+        {args = {"Zone2B1", "Naga"}, desc = "Zone+Naga"},
+        {args = {"Activate"}, desc = "Activate"},
+        {args = {"Start"}, desc = "Start"},
+        {args = {"Spawn", "Naga"}, desc = "Spawn+Naga"},
+        {args = {"Spawn", "Zone2B1"}, desc = "Spawn+Zone"},
+        {args = {"Summon", "Naga"}, desc = "Summon+Naga"},
+        {args = {"Summon", "Zone2B1"}, desc = "Summon+Zone"},
+        {args = {"Boss", "Naga"}, desc = "Boss+Naga"},
+        {args = {"Boss", "Zone2B1"}, desc = "Boss+Zone"},
+        {args = {1}, desc = "1"},
+        {args = {true}, desc = "true"},
+        {args = {false}, desc = "false"},
+        {args = {}, desc = "aucun argument"},
+    }
+
+    -- Ajouter des tests pour chaque boss avec différentes combinaisons
+    for _, bossName in ipairs(bossList) do
+        local zoneName = bossZoneMap[bossName]
+        table.insert(testCases, {args = {bossName}, desc = "Boss:" .. bossName})
+        table.insert(testCases, {args = {zoneName}, desc = "Zone:" .. zoneName})
+        table.insert(testCases, {args = {zoneName, bossName}, desc = "Zone+Boss:" .. zoneName .. "+" .. bossName})
+        table.insert(testCases, {args = {"Spawn", bossName}, desc = "Spawn+" .. bossName})
+        table.insert(testCases, {args = {"Summon", bossName}, desc = "Summon+" .. bossName})
+        table.insert(testCases, {args = {"Boss", bossName}, desc = "Boss+" .. bossName})
+        table.insert(testCases, {args = {"Spawn", zoneName}, desc = "Spawn+" .. zoneName})
+        table.insert(testCases, {args = {"Summon", zoneName}, desc = "Summon+" .. zoneName})
+        table.insert(testCases, {args = {"Boss", zoneName}, desc = "Boss+" .. zoneName})
+        table.insert(testCases, {args = {"Spawn", zoneName, bossName}, desc = "Spawn+Zone+Boss"})
+        table.insert(testCases, {args = {"Summon", zoneName, bossName}, desc = "Summon+Zone+Boss"})
+        table.insert(testCases, {args = {"Boss", zoneName, bossName}, desc = "Boss+Zone+Boss"})
+    end
+
+    -- Exécuter tous les tests
+    for i, test in ipairs(testCases) do
+        log("Test " .. i .. "/" .. #testCases .. ": " .. test.desc)
+        local ok = testSpawn(BossesEvent, test.args, test.desc)
+        if ok then
+            -- Vérifier si un boss est apparu dans les 2 secondes
+            task.wait(0.5) -- laisser le temps au serveur de réagir
+            for _, bossName in ipairs(bossList) do
+                local zoneName = bossZoneMap[bossName]
+                if checkBossAppeared(zoneName, bossName) then
+                    notify("BOSS SPAWNÉ !", bossName .. " est apparu après : " .. test.desc, 5)
+                    log(">>> BOSS SPAWNÉ !", bossName, "avec", test.desc)
+                    -- On peut stopper les tests pour ne pas surcharger
+                    return
+                end
+            end
+        end
+        task.wait(0.2) -- petit délai entre les tests
+    end
+
+    log("=== FIN DES TESTS ===")
+    notify("Tests terminés", "Aucun boss n'est apparu. Voir console F9.", 5)
+end
+
+-- ==== 7. Bouton de test manuel avec arguments personnalisés ====
+-- Interface simple avec input pour tester manuellement
+local function manualTest()
+    local args = {}
+    local input = prompt("Entrez les arguments séparés par des virgules (ex: Spawn,Naga)")
+    if input then
+        for word in string.gmatch(input, "[^,]+") do
+            table.insert(args, word)
+        end
+        log("Test manuel avec args:", table.unpack(args))
+        local ok = testSpawn(BossesEvent, args, "manuel")
+        if ok then
+            task.wait(1)
+            for _, bossName in ipairs(bossList) do
+                local zoneName = bossZoneMap[bossName]
+                if checkBossAppeared(zoneName, bossName) then
+                    notify("BOSS SPAWNÉ !", bossName, 5)
+                end
+            end
+        end
+    end
+end
+
+-- ==== 8. Lancement automatique ====
+notify("Test BossesEvent", "Lancement des tests automatiques...", 3)
+task.wait(1)
+runAllTests()
+
+-- Ajout d'un bouton pour test manuel (via console)
+print("=== Pour tester manuellement, tapez : manualTest() ===")
+_G.manualTest = manualTest
+print("=== Pour relancer les tests automatiques : runAllTests() ===")
+_G.runAllTests = runAllTests
+
+-- ==== 9. Commande de copie des résultats ====
+print("=== Pour copier les résultats, utilisez la console Roblox (F9) et sélectionnez/copiez ===")
+
+-- ==== 10. Interface Rayfield (optionnel pour faciliter) ====
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local win = Rayfield:CreateWindow({
+    Name = "BossEvent Test",
+    LoadingTitle = "Pet Swarm Sim",
+    LoadingSubtitle = "Testeur de BossesEvent",
+    ConfigurationSaving = { Enabled = false },
+    Theme = "Amethyst"
+})
+local tab = win:CreateTab("Test")
+tab:CreateButton({ Name = "Lancer les tests automatiques", Callback = runAllTests })
+tab:CreateButton({ Name = "Test manuel (avec prompt)", Callback = function()
+    local input = "Spawn,Naga" -- valeur par défaut
+    local success, result = pcall(function()
+        input = game:GetService("GuiService"):GetPromptResult("Entrez les arguments (ex: Spawn,Naga):")
+    end)
+    if not success then
+        -- fallback
+        input = "Spawn,Naga"
+    end
+    if input and input ~= "" then
+        local args = {}
+        for word in string.gmatch(input, "[^,]+") do
+            table.insert(args, word)
+        end
+        pcall(testSpawn, BossesEvent, args, "manuel")
+    end
+end })
+tab:CreateLabel("Consultez la console (F9) pour les logs.")
