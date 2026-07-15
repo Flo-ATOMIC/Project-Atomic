@@ -1,223 +1,115 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local StarterGui = game:GetService("StarterGui")
 
--- ==== 1. Notifications et logs ====
+-- ==== 1. Notifications ====
 local function notify(title, text, duration)
     duration = duration or 3
     pcall(function() StarterGui:SetCore("SendNotification", { Title = title, Text = text, Duration = duration }) end)
 end
 
 local function log(...)
-    print("[Debug]", ...)
+    print("[Remote Sniffer]", ...)
 end
 
--- ==== 2. Récupération des remotes candidats ====
-local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
-local Events = Remotes and Remotes:FindFirstChild("Events")
-local Functions = Remotes and Remotes:FindFirstChild("Functions")
+-- ==== 2. Variables de suivi ====
+local sniffing = false
+local sniffDuration = 30 -- secondes
+local connections = {}
 
--- Liste des remotes intéressants (on ajoute aussi CombatRF pour les attaques)
-local candidateRemotes = {
-    { name = "BossesEvent", remote = Events and Events:FindFirstChild("BossesEvent"), type = "Event" },
-    { name = "ZonesRE", remote = Events and Events:FindFirstChild("ZonesRE"), type = "Event" },
-    { name = "CombatRE", remote = Events and Events:FindFirstChild("CombatRE"), type = "Event" },
-    { name = "DamageRE", remote = Events and Events:FindFirstChild("DamageRE"), type = "Event" },
-    { name = "CombatRF", remote = Functions and Functions:FindFirstChild("CombatRF"), type = "Function" },
-    { name = "ZonesRF", remote = Functions and Functions:FindFirstChild("ZonesRF"), type = "Function" },
-}
-
--- Filtrer ceux qui existent
-local availableRemotes = {}
-for _, info in ipairs(candidateRemotes) do
-    if info.remote then
-        table.insert(availableRemotes, info)
-        log("Remote trouvé:", info.name, "Type:", info.type)
+-- ==== 3. Fonction pour hook les remotes ====
+local function hookRemote(remote, path)
+    if remote:IsA("RemoteEvent") then
+        local conn = remote.OnServerEvent:Connect(function(player, ...)
+            if player == LocalPlayer then
+                log("📡 REMOTE EVENT:", path, "arguments:", ...)
+            end
+        end)
+        table.insert(connections, conn)
+    elseif remote:IsA("RemoteFunction") then
+        -- Pour les fonctions, on ne peut pas hook directement, on va utiliser une métatable pour logger les appels entrants
+        -- Mais on peut logger quand on appelle nous-mêmes, pas quand le serveur appelle. 
+        -- On va plutôt logger via un wrapper si possible.
+        -- On va créer un proxy sur InvokeServer pour logger les appels que NOUS faisons.
+        -- Mais pour capturer les appels serveur -> client, ce n'est pas possible.
+        -- On peut juste logger les appels que le client fait vers le serveur via InvokeServer.
+        local oldInvoke = remote.InvokeServer
+        remote.InvokeServer = function(self, ...)
+            log("📡 REMOTE FUNCTION (invoke):", path, "arguments:", ...)
+            return oldInvoke(self, ...)
+        end
+        -- On garde aussi l'original pour restaurer après
+        table.insert(connections, { restore = function() remote.InvokeServer = oldInvoke end })
     end
 end
 
--- ==== 3. Données des boss et zones ====
-local bossZoneMap = {
-    Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1", ["Tiki Monster"] = "Zone10B1",
-    ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
-    ["The Ethereal Everia"] = "Zone12B2", ["Hornet Boss"] = "SummerEventZoneB1",
-    ["The Ice Serpent"] = "WinterEventZoneB1", ["Great Sphinx"] = "ElementEventZoneB1",
-}
-local bossList = {
-    "Naga", "Lava Monster", "Ghost Pirate", "Tiki Monster", "The Frozen Ancient", "The Big 100M",
-    "The Ethereal Everia", "Hornet Boss", "The Ice Serpent", "Great Sphinx"
-}
-
--- ==== 4. Fonction d'appel de remote ====
-local function callRemote(remote, args, isFunction)
-    if not remote then
-        notify("Erreur", "Remote introuvable", 2)
-        return false
+-- ==== 4. Fonction pour parcourir les remotes ====
+local function hookAllRemotes(container, path)
+    path = path or container.Name
+    for _, child in ipairs(container:GetChildren()) do
+        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+            hookRemote(child, path .. "/" .. child.Name)
+        end
+        hookAllRemotes(child, path .. "/" .. child.Name)
     end
-    local success, result
-    if isFunction then
-        success, result = pcall(remote.InvokeServer, remote, table.unpack(args))
-    else
-        success, result = pcall(remote.FireServer, remote, table.unpack(args))
-    end
-    if success then
-        log("Appel réussi sur", remote.Name, "avec arguments:", table.unpack(args))
-        notify("Succès", remote.Name .. " appelé avec " .. #args .. " argument(s)", 2)
-    else
-        log("Erreur sur", remote.Name, ":", result)
-        notify("Erreur", remote.Name .. " : " .. tostring(result), 3)
-    end
-    return success
 end
 
--- ==== 5. Interface Rayfield ====
+-- ==== 5. Démarrer l'écoute ====
+function startSniffing()
+    if sniffing then
+        notify("Sniffer", "Déjà en cours", 2)
+        return
+    end
+    sniffing = true
+    log("=== DÉBUT DE L'ÉCOUTE (durée: " .. sniffDuration .. "s) ===")
+    notify("Sniffer", "Écoute démarrée, déclenchez un boss dans le jeu !", 3)
+    
+    -- Hook tous les remotes dans ReplicatedStorage
+    hookAllRemotes(ReplicatedStorage)
+    
+    -- Aussi dans Workspace (au cas où)
+    hookAllRemotes(Workspace)
+    
+    -- Arrêter après la durée
+    task.wait(sniffDuration)
+    stopSniffing()
+end
+
+function stopSniffing()
+    if not sniffing then return end
+    sniffing = false
+    log("=== FIN DE L'ÉCOUTE ===")
+    -- Restaurer les remotes (pour les fonctions modifiées)
+    for _, conn in ipairs(connections) do
+        if conn.restore then
+            conn.restore()
+        else
+            pcall(conn.Disconnect, conn)
+        end
+    end
+    connections = {}
+    notify("Sniffer", "Écoute terminée. Voir console (F9).", 3)
+end
+
+-- ==== 6. Interface Rayfield (intégration simple) ====
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local win = Rayfield:CreateWindow({
-    Name = "Project-Atomic Debug",
-    LoadingTitle = "Remote Tester",
-    LoadingSubtitle = "Boss Spawn Debug",
+    Name = "Remote Sniffer",
+    LoadingTitle = "Boss Spawn Debug",
+    LoadingSubtitle = "Capture des appels",
     ConfigurationSaving = { Enabled = false },
     Theme = "Amethyst"
 })
+local mainTab = win:CreateTab("Sniffer")
+mainTab:CreateSection("Contrôle")
+mainTab:CreateButton({ Name = "▶️ Démarrer l'écoute (30s)", Callback = startSniffing })
+mainTab:CreateButton({ Name = "⏹️ Arrêter l'écoute", Callback = stopSniffing })
+mainTab:CreateLabel("Instructions:")
+mainTab:CreateLabel("1. Cliquez sur 'Démarrer'")
+mainTab:CreateLabel("2. Allez dans le jeu et déclenchez un boss")
+mainTab:CreateLabel("3. Attendez la fin ou arrêtez")
+mainTab:CreateLabel("4. Consultez la console (F9)")
 
-local debugTab = win:CreateTab("Debug Remotes")
-
--- Sélection du remote
-debugTab:CreateSection("Sélection du remote")
-local remoteOptions = {}
-for _, info in ipairs(availableRemotes) do
-    table.insert(remoteOptions, info.name .. " (" .. info.type .. ")")
-end
-local selectedRemoteIndex = 1 -- par défaut le premier
-
-local dropdown = debugTab:CreateDropdown({
-    Name = "Remote à tester",
-    Options = remoteOptions,
-    CurrentOption = remoteOptions[1],
-    Callback = function(opt)
-        for i, info in ipairs(availableRemotes) do
-            if opt == info.name .. " (" .. info.type .. ")" then
-                selectedRemoteIndex = i
-                break
-            end
-        end
-    end
-})
-
--- Arguments
-debugTab:CreateSection("Arguments")
-local arg1Input = debugTab:CreateInput({
-    Name = "Argument 1 (ex: zone ou boss)",
-    PlaceholderText = "Zone2B1 ou Naga",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(text) arg1 = text end
-})
-local arg2Input = debugTab:CreateInput({
-    Name = "Argument 2 (optionnel)",
-    PlaceholderText = "Naga ou nil",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(text) arg2 = text end
-})
-
--- Boutons rapides pour les zones
-debugTab:CreateSection("Zones rapides")
-local zoneButtons = {}
-for _, bossName in ipairs(bossList) do
-    local zoneName = bossZoneMap[bossName]
-    table.insert(zoneButtons, {boss = bossName, zone = zoneName})
-end
--- On fait une grille de boutons (pas possible en colonnes, on les met en ligne)
-for _, btn in ipairs(zoneButtons) do
-    debugTab:CreateButton({
-        Name = btn.boss .. " (" .. btn.zone .. ")",
-        Callback = function()
-            arg1 = btn.zone
-            arg2 = btn.boss
-            notify("Prêt", "Zone: " .. arg1 .. ", Boss: " .. arg2, 2)
-        end
-    })
-end
-
--- Bouton d'appel
-debugTab:CreateSection("Action")
-debugTab:CreateButton({
-    Name = "🚀 Envoyer la requête",
-    Callback = function()
-        local info = availableRemotes[selectedRemoteIndex]
-        if not info then
-            notify("Erreur", "Aucun remote sélectionné", 2)
-            return
-        end
-        local args = {}
-        if arg1 and arg1 ~= "" then table.insert(args, arg1) end
-        if arg2 and arg2 ~= "" then table.insert(args, arg2) end
-        -- Si aucun argument, on envoie quand même un appel sans argument
-        callRemote(info.remote, args, info.type == "Function")
-    end
-})
-
--- Bouton "Tester toutes les combinaisons" pour BossesEvent
-debugTab:CreateButton({
-    Name = "🧪 Tester BossesEvent avec toutes les zones",
-    Callback = function()
-        local bossEvent = Events and Events:FindFirstChild("BossesEvent")
-        if not bossEvent then
-            notify("Erreur", "BossesEvent introuvable", 2)
-            return
-        end
-        for _, bossName in ipairs(bossList) do
-            local zoneName = bossZoneMap[bossName]
-            -- Test avec zone seule
-            callRemote(bossEvent, {zoneName}, false)
-            task.wait(0.3)
-            -- Test avec boss seul
-            callRemote(bossEvent, {bossName}, false)
-            task.wait(0.3)
-            -- Test avec les deux
-            callRemote(bossEvent, {zoneName, bossName}, false)
-            task.wait(0.3)
-            -- Test sans argument
-            callRemote(bossEvent, {}, false)
-            task.wait(0.3)
-        end
-        notify("Test terminé", "Voir console pour les résultats", 3)
-    end
-})
-
--- Bouton pour ZonesRE
-debugTab:CreateButton({
-    Name = "🧪 Tester ZonesRE avec toutes les zones",
-    Callback = function()
-        local zonesRE = Events and Events:FindFirstChild("ZonesRE")
-        if not zonesRE then
-            notify("Erreur", "ZonesRE introuvable", 2)
-            return
-        end
-        for _, bossName in ipairs(bossList) do
-            local zoneName = bossZoneMap[bossName]
-            callRemote(zonesRE, {zoneName}, false)
-            task.wait(0.3)
-            callRemote(zonesRE, {bossName}, false)
-            task.wait(0.3)
-            callRemote(zonesRE, {zoneName, bossName}, false)
-            task.wait(0.3)
-        end
-        notify("Test terminé", "Voir console", 3)
-    end
-})
-
--- Section informations
-debugTab:CreateSection("Infos")
-debugTab:CreateLabel("Remotes disponibles: " .. #availableRemotes)
-debugTab:CreateLabel("BossesEvent: " .. tostring(Events and Events:FindFirstChild("BossesEvent") ~= nil))
-debugTab:CreateLabel("ZonesRE: " .. tostring(Events and Events:FindFirstChild("ZonesRE") ~= nil))
-
--- ==== 6. Log initial ====
-log("=== Script Debug chargé ===")
-log("Remotes disponibles:", #availableRemotes)
-for _, info in ipairs(availableRemotes) do
-    log(" - " .. info.name .. " (" .. info.type .. ")")
-end
-notify("Debug", "Script prêt. Utilisez l'onglet Debug Remotes.", 3)
+notify("Sniffer", "Script chargé. Cliquez sur 'Démarrer' pour capturer les appels.", 3)
