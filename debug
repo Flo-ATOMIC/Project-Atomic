@@ -1,115 +1,202 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local StarterGui = game:GetService("StarterGui")
 
--- ==== 1. Notifications ====
+-- ==== 1. Notifications et logs ====
 local function notify(title, text, duration)
     duration = duration or 3
     pcall(function() StarterGui:SetCore("SendNotification", { Title = title, Text = text, Duration = duration }) end)
 end
 
 local function log(...)
-    print("[Remote Sniffer]", ...)
+    print("[Diagnostic]", ...)
+    warn("[Diagnostic]", ...)  -- apparaîtra aussi dans la console F9
 end
 
--- ==== 2. Variables de suivi ====
-local sniffing = false
-local sniffDuration = 30 -- secondes
-local connections = {}
+-- ==== 2. Récupération des remotes ====
+local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local Events = Remotes and Remotes:FindFirstChild("Events")
+local Functions = Remotes and Remotes:FindFirstChild("Functions")
 
--- ==== 3. Fonction pour hook les remotes ====
-local function hookRemote(remote, path)
-    if remote:IsA("RemoteEvent") then
-        local conn = remote.OnServerEvent:Connect(function(player, ...)
-            if player == LocalPlayer then
-                log("📡 REMOTE EVENT:", path, "arguments:", ...)
-            end
-        end)
-        table.insert(connections, conn)
-    elseif remote:IsA("RemoteFunction") then
-        -- Pour les fonctions, on ne peut pas hook directement, on va utiliser une métatable pour logger les appels entrants
-        -- Mais on peut logger quand on appelle nous-mêmes, pas quand le serveur appelle. 
-        -- On va plutôt logger via un wrapper si possible.
-        -- On va créer un proxy sur InvokeServer pour logger les appels que NOUS faisons.
-        -- Mais pour capturer les appels serveur -> client, ce n'est pas possible.
-        -- On peut juste logger les appels que le client fait vers le serveur via InvokeServer.
-        local oldInvoke = remote.InvokeServer
-        remote.InvokeServer = function(self, ...)
-            log("📡 REMOTE FUNCTION (invoke):", path, "arguments:", ...)
-            return oldInvoke(self, ...)
+local BossesEvent = Events and Events:FindFirstChild("BossesEvent")
+local ZonesRE = Events and Events:FindFirstChild("ZonesRE")
+local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
+local RequestData = Events and Events:FindFirstChild("RequestData")  -- peut-être utile
+
+log("=== REMOTES TROUVÉS ===")
+log("BossesEvent:", BossesEvent ~= nil)
+log("ZonesRE:", ZonesRE ~= nil)
+log("ZonesRF:", ZonesRF ~= nil)
+log("RequestData:", RequestData ~= nil)
+
+-- ==== 3. Données des boss ====
+local bossZoneMap = {
+    Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1", ["Tiki Monster"] = "Zone10B1",
+    ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
+    ["The Ethereal Everia"] = "Zone12B2", ["Hornet Boss"] = "SummerEventZoneB1",
+    ["The Ice Serpent"] = "WinterEventZoneB1", ["Great Sphinx"] = "ElementEventZoneB1",
+}
+local bossList = {
+    "Naga", "Lava Monster", "Ghost Pirate", "Tiki Monster", "The Frozen Ancient", "The Big 100M",
+    "The Ethereal Everia", "Hornet Boss", "The Ice Serpent", "Great Sphinx"
+}
+
+-- ==== 4. Fonction pour appeler un remote et logger ====
+local function callRemote(remote, args, isFunction)
+    if not remote then
+        log("Remote introuvable")
+        return false
+    end
+    local success, result
+    if isFunction then
+        success, result = pcall(remote.InvokeServer, remote, table.unpack(args))
+    else
+        success, result = pcall(remote.FireServer, remote, table.unpack(args))
+    end
+    if success then
+        log("✅ SUCCÈS sur", remote.Name, "args:", table.unpack(args))
+        if result then
+            log("   Réponse du serveur:", result)
         end
-        -- On garde aussi l'original pour restaurer après
-        table.insert(connections, { restore = function() remote.InvokeServer = oldInvoke end })
+    else
+        log("❌ ÉCHEC sur", remote.Name, "Erreur:", result)
     end
+    return success
 end
 
--- ==== 4. Fonction pour parcourir les remotes ====
-local function hookAllRemotes(container, path)
-    path = path or container.Name
-    for _, child in ipairs(container:GetChildren()) do
-        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-            hookRemote(child, path .. "/" .. child.Name)
+-- ==== 5. Hook sur BossesEvent pour écouter les réponses ====
+if BossesEvent then
+    BossesEvent.OnServerEvent:Connect(function(player, ...)
+        if player == LocalPlayer then
+            log("📨 Réponse de BossesEvent reçue:", ...)
+            notify("BossesEvent", "Réponse: " .. tostring({...}), 3)
         end
-        hookAllRemotes(child, path .. "/" .. child.Name)
-    end
+    end)
+    log("✅ Écoute de BossesEvent activée")
 end
 
--- ==== 5. Démarrer l'écoute ====
-function startSniffing()
-    if sniffing then
-        notify("Sniffer", "Déjà en cours", 2)
-        return
-    end
-    sniffing = true
-    log("=== DÉBUT DE L'ÉCOUTE (durée: " .. sniffDuration .. "s) ===")
-    notify("Sniffer", "Écoute démarrée, déclenchez un boss dans le jeu !", 3)
-    
-    -- Hook tous les remotes dans ReplicatedStorage
-    hookAllRemotes(ReplicatedStorage)
-    
-    -- Aussi dans Workspace (au cas où)
-    hookAllRemotes(Workspace)
-    
-    -- Arrêter après la durée
-    task.wait(sniffDuration)
-    stopSniffing()
-end
+-- ==== 6. Tests automatiques ====
+local function runTests()
+    notify("Diagnostic", "Lancement des tests...", 3)
+    log("=== DÉBUT DES TESTS ===")
 
-function stopSniffing()
-    if not sniffing then return end
-    sniffing = false
-    log("=== FIN DE L'ÉCOUTE ===")
-    -- Restaurer les remotes (pour les fonctions modifiées)
-    for _, conn in ipairs(connections) do
-        if conn.restore then
-            conn.restore()
-        else
-            pcall(conn.Disconnect, conn)
+    -- Test 1 : ZonesRF avec "RequestZoneMap"
+    if ZonesRF then
+        for _, bossName in ipairs(bossList) do
+            local zoneName = bossZoneMap[bossName]
+            log("🔹 Test ZonesRF RequestZoneMap pour", zoneName)
+            callRemote(ZonesRF, {"RequestZoneMap", zoneName}, true)
+            task.wait(0.5)
         end
     end
-    connections = {}
-    notify("Sniffer", "Écoute terminée. Voir console (F9).", 3)
+
+    -- Test 2 : ZonesRE avec zone seule
+    if ZonesRE then
+        for _, bossName in ipairs(bossList) do
+            local zoneName = bossZoneMap[bossName]
+            log("🔹 Test ZonesRE avec", zoneName)
+            callRemote(ZonesRE, {zoneName}, false)
+            task.wait(0.5)
+        end
+    end
+
+    -- Test 3 : BossesEvent avec zone seule
+    if BossesEvent then
+        for _, bossName in ipairs(bossList) do
+            local zoneName = bossZoneMap[bossName]
+            log("🔹 Test BossesEvent avec", zoneName)
+            callRemote(BossesEvent, {zoneName}, false)
+            task.wait(0.5)
+        end
+    end
+
+    -- Test 4 : BossesEvent avec zone + boss
+    if BossesEvent then
+        for _, bossName in ipairs(bossList) do
+            local zoneName = bossZoneMap[bossName]
+            log("🔹 Test BossesEvent avec", zoneName, bossName)
+            callRemote(BossesEvent, {zoneName, bossName}, false)
+            task.wait(0.5)
+        end
+    end
+
+    -- Test 5 : BossesEvent avec "Spawn" + zone
+    if BossesEvent then
+        for _, bossName in ipairs(bossList) do
+            local zoneName = bossZoneMap[bossName]
+            log("🔹 Test BossesEvent avec 'Spawn'", zoneName)
+            callRemote(BossesEvent, {"Spawn", zoneName}, false)
+            task.wait(0.5)
+        end
+    end
+
+    -- Test 6 : RequestData si disponible
+    if RequestData then
+        log("🔹 Test RequestData")
+        callRemote(RequestData, {}, false)
+        task.wait(0.5)
+    end
+
+    log("=== TESTS TERMINÉS ===")
+    notify("Diagnostic", "Tests terminés. Voir console F9 pour les détails.", 4)
 end
 
--- ==== 6. Interface Rayfield (intégration simple) ====
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- ==== 7. Interface Rayfield pour lancer les tests ====
 local win = Rayfield:CreateWindow({
-    Name = "Remote Sniffer",
-    LoadingTitle = "Boss Spawn Debug",
-    LoadingSubtitle = "Capture des appels",
+    Name = "Diagnostic Boss Spawn",
+    LoadingTitle = "Pet Swarm Sim",
+    LoadingSubtitle = "Remote Tester avancé",
     ConfigurationSaving = { Enabled = false },
     Theme = "Amethyst"
 })
-local mainTab = win:CreateTab("Sniffer")
-mainTab:CreateSection("Contrôle")
-mainTab:CreateButton({ Name = "▶️ Démarrer l'écoute (30s)", Callback = startSniffing })
-mainTab:CreateButton({ Name = "⏹️ Arrêter l'écoute", Callback = stopSniffing })
-mainTab:CreateLabel("Instructions:")
-mainTab:CreateLabel("1. Cliquez sur 'Démarrer'")
-mainTab:CreateLabel("2. Allez dans le jeu et déclenchez un boss")
-mainTab:CreateLabel("3. Attendez la fin ou arrêtez")
-mainTab:CreateLabel("4. Consultez la console (F9)")
 
-notify("Sniffer", "Script chargé. Cliquez sur 'Démarrer' pour capturer les appels.", 3)
+local mainTab = win:CreateTab("Tests")
+mainTab:CreateSection("Lancer les tests")
+mainTab:CreateButton({
+    Name = "🚀 Lancer tous les tests",
+    Callback = runTests
+})
+
+mainTab:CreateSection("Résultats")
+mainTab:CreateLabel("Voir la console (F9) pour les logs détaillés.")
+mainTab:CreateLabel("Les notifications afficheront les réponses.")
+
+-- Ajouter des boutons pour tester individuellement
+mainTab:CreateSection("Tests individuels")
+mainTab:CreateButton({
+    Name = "🔄 ZonesRF RequestZoneMap (Naga)",
+    Callback = function()
+        if ZonesRF then
+            callRemote(ZonesRF, {"RequestZoneMap", "Zone2B1"}, true)
+        end
+    end
+})
+mainTab:CreateButton({
+    Name = "🔄 BossesEvent (Zone2B1)",
+    Callback = function()
+        if BossesEvent then
+            callRemote(BossesEvent, {"Zone2B1"}, false)
+        end
+    end
+})
+mainTab:CreateButton({
+    Name = "🔄 BossesEvent (Naga)",
+    Callback = function()
+        if BossesEvent then
+            callRemote(BossesEvent, {"Naga"}, false)
+        end
+    end
+})
+mainTab:CreateButton({
+    Name = "🔄 BossesEvent (Zone2B1, Naga)",
+    Callback = function()
+        if BossesEvent then
+            callRemote(BossesEvent, {"Zone2B1", "Naga"}, false)
+        end
+    end
+})
+
+notify("Diagnostic", "Script chargé ! Lancez les tests ou utilisez les boutons individuels.", 3)
