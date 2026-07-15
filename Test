@@ -6,7 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local StarterGui = game:GetService("StarterGui")
 
--- ==== 1. Notifications ====
+-- ==== 1. Notifications & logs ====
 local function notify(title, text, duration)
     duration = duration or 3
     pcall(function()
@@ -50,11 +50,12 @@ for _, name in ipairs(bossList) do bossEnabled[name] = true end
 -- ==== 4. Configuration ====
 local config = {
     farmBosses = false,
-    bossAttackDelay = 0.1, -- réduit pour tuer plus vite
+    bossAttackDelay = 0.1,
     bossSpawnBooster = false,
     bossSpawnInterval = 0.5,
     autoKillBosses = false,
     forceSpawnMethod = "auto",
+    clickAltars = false,       -- Nouvelle option
     farmEnemies = false,
     farmFood = false,
     autoPlant = false,
@@ -87,7 +88,7 @@ local function safeAttackEnemy(enemy, pet)
     end
 end
 
--- ==== 6. SCANNER COMPLET DES REMOTES ====
+-- ==== 6. SCAN DES REMOTES (complet) ====
 local function scanAllRemotes()
     log("=== SCAN DE TOUS LES REMOTES ===")
     local function scan(container, path)
@@ -101,10 +102,39 @@ local function scanAllRemotes()
     end
     scan(ReplicatedStorage, "ReplicatedStorage")
     log("=== FIN DU SCAN ===")
-    notify("Scan terminé", "Consultez la console (F9) pour la liste complète des remotes.", 4)
+    notify("Scan terminé", "Consultez la console (F9).", 4)
 end
 
--- ==== 7. RECHERCHE D'UN REMOTE DE SPAWN (élargie) ====
+-- ==== 7. SCAN DE WORKSPACE (ClickDetectors / ProximityPrompts) ====
+local altarObjects = {} -- cache
+
+local function scanWorkspaceForAltars()
+    altarObjects = {}
+    log("=== SCAN DE WORKSPACE POUR INTERACTIONS ===")
+    for _, bossName in ipairs(bossList) do
+        local zoneName = bossZoneMap[bossName]
+        local zone = Workspace.Zones:FindFirstChild(zoneName)
+        if zone then
+            -- Recherche de ClickDetectors ou ProximityPrompts dans toute la zone
+            for _, child in ipairs(zone:GetDescendants()) do
+                if child:IsA("ClickDetector") then
+                    local parent = child.Parent
+                    if parent and parent:IsA("BasePart") then
+                        log("ClickDetector trouvé dans", zoneName, "sur", parent.Name)
+                        table.insert(altarObjects, {detector = child, part = parent, zone = zoneName})
+                    end
+                elseif child:IsA("ProximityPrompt") then
+                    log("ProximityPrompt trouvé dans", zoneName, "sur", child.Parent and child.Parent.Name or "inconnu")
+                    table.insert(altarObjects, {prompt = child, zone = zoneName})
+                end
+            end
+        end
+    end
+    log("=== FIN SCAN ===")
+    notify("Scan Workspace", #altarObjects .. " interactions trouvées.", 4)
+end
+
+-- ==== 8. FORCE SPAWN VIA REMOTE (si trouvé) ====
 local spawnRemote = nil
 local spawnRemoteType = nil
 
@@ -141,12 +171,10 @@ local function findSpawnRemote()
         notify("Remote trouvé", remote.Name, 3)
     else
         log("Aucun remote contenant les mots-clés trouvé.")
-        notify("Remote", "Aucun remote de spawn trouvé.", 3)
     end
     return remote
 end
 
--- ==== 8. FORCE SPAWN (si remote trouvé) ====
 local function tryInvoke(remote, args)
     if not remote then return false end
     local ok, err = pcall(function()
@@ -166,51 +194,67 @@ function forceBossSpawn()
     if not config.bossSpawnBooster then return end
 
     local remote = findSpawnRemote()
-    if not remote then
-        -- Alternative : interagir avec les autels (si présents)
+    if remote then
         for _, bossName in ipairs(bossList) do
             if bossEnabled[bossName] then
-                local zone = Workspace.Zones:FindFirstChild(bossZoneMap[bossName])
-                if zone then
-                    for _, child in ipairs(zone:GetDescendants()) do
-                        if child:IsA("BasePart") and (child.Name:lower():find("altar") or child.Name:lower():find("summon")) then
-                            local click = child:FindFirstChildOfClass("ClickDetector")
-                            if click then
-                                pcall(click.Click, click, LocalPlayer)
-                                log("Clic sur autel dans", zone.Name)
-                            end
+                local zoneName = bossZoneMap[bossName]
+                if zoneName then
+                    local combos = {
+                        {zoneName},
+                        {bossName},
+                        {zoneName, bossName},
+                        {}
+                    }
+                    for _, args in ipairs(combos) do
+                        if tryInvoke(remote, args) then
+                            log("Spawn déclenché pour", bossName, "avec", unpack(args))
+                            break
                         end
                     end
+                    task.wait(0.1)
                 end
             end
         end
-        return
     end
 
-    -- Tenter différentes combinaisons d'arguments
-    for _, bossName in ipairs(bossList) do
-        if bossEnabled[bossName] then
-            local zoneName = bossZoneMap[bossName]
-            if zoneName then
-                local combos = {
-                    {zoneName},
-                    {bossName},
-                    {zoneName, bossName},
-                    {}
-                }
-                for _, args in ipairs(combos) do
-                    if tryInvoke(remote, args) then
-                        log("Spawn déclenché pour", bossName, "avec", unpack(args))
-                        break
-                    end
-                end
-                task.wait(0.1)
-            end
-        end
+    -- Même si un remote est trouvé, on tente aussi les clics sur les autels (si activé)
+    if config.clickAltars then
+        clickAllAltars()
     end
 end
 
--- ==== 9. AUTO-KILL (accélération du cycle) ====
+-- ==== 9. CLIC SUR LES AUTELS / INTERACTIONS ====
+function clickAllAltars()
+    if #altarObjects == 0 then
+        -- Si le cache est vide, on le scanne
+        scanWorkspaceForAltars()
+    end
+    for _, obj in ipairs(altarObjects) do
+        if obj.detector and obj.detector:IsA("ClickDetector") then
+            local success, err = pcall(function()
+                obj.detector:Click(LocalPlayer)
+            end)
+            if success then
+                log("Clic effectué sur", obj.detector.Parent and obj.detector.Parent.Name or "inconnu")
+            else
+                log("Erreur clic:", err)
+            end
+        elseif obj.prompt and obj.prompt:IsA("ProximityPrompt") then
+            -- Pour les ProximityPrompt, on peut essayer de l'activer
+            local success, err = pcall(function()
+                obj.prompt:InputHoldBegin(LocalPlayer) -- ou InputHoldEnd / Action
+            end)
+            if success then
+                log("Prompt activé dans", obj.zone)
+            else
+                log("Erreur prompt:", err)
+            end
+        end
+        task.wait(0.2)
+    end
+end
+
+-- ==== 10. AUTO-KILL (accélération) ====
 local function autoKillBosses()
     if not config.autoKillBosses then return end
     local pets = updatePets()
@@ -224,7 +268,6 @@ local function autoKillBosses()
                 if enemies then
                     local boss = enemies:FindFirstChild(bossName)
                     if boss and CombatRemote then
-                        -- Attaque en boucle très rapide
                         for _ = 1, 10 do
                             pcall(CombatRemote.InvokeServer, CombatRemote, "AttackEnemy", boss, pets[1])
                             task.wait(0.005)
@@ -237,7 +280,7 @@ local function autoKillBosses()
     end
 end
 
--- ==== 10. Attaque normale des boss (si farm activé) ====
+-- ==== 11. Attaque normale des boss ====
 local function attackBosses()
     if not config.farmBosses then return end
     local pets = updatePets()
@@ -259,7 +302,7 @@ local function attackBosses()
     end
 end
 
--- ==== 11. Sacrifice et autres ====
+-- ==== 12. Sacrifice, animations, anti-kick ====
 local function sacrificePet(petName)
     if SacrificeRemote then
         pcall(SacrificeRemote.InvokeServer, SacrificeRemote, "SacrificeWell", petName)
@@ -281,7 +324,6 @@ local function removeCoinsAnimation()
     end
 end
 
--- Anti-kick (simplifié)
 local AntiKickEnabled = true
 local kickAvoidCount = 0
 local ac1
@@ -303,7 +345,7 @@ ac1 = hookmetamethod(game, "__namecall", function(self, ...)
     return ac1(self, ...)
 end)
 
--- ==== 12. Boucle principale ====
+-- ==== 13. Boucle principale ====
 local active = false
 local mainThread = nil
 
@@ -321,7 +363,6 @@ local function start()
             if config.farmBosses then
                 pcall(attackBosses)
             end
-            -- Autres tâches (ennemis, etc.) peuvent être ajoutées ici si besoin
             task.wait(config.bossSpawnInterval)
         end
     end)
@@ -334,11 +375,11 @@ local function stop()
     notify("Farm", "Arrêté.", 2)
 end
 
--- ==== 13. Interface Rayfield ====
+-- ==== 14. Interface Rayfield ====
 local win = Rayfield:CreateWindow({
     Name = "Project-Atomic",
     LoadingTitle = "Pet Swarm Sim",
-    LoadingSubtitle = "Boss Spawn Debug",
+    LoadingSubtitle = "Boss Spawn Debug + Altars",
     ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "Config" },
     Theme = "Amethyst"
 })
@@ -348,7 +389,6 @@ mainTab:CreateSection("Control")
 mainTab:CreateButton({ Name = "Start", Callback = start })
 mainTab:CreateButton({ Name = "Stop", Callback = stop })
 
-mainTab:CreateSection("Statut")
 local statusLabel = mainTab:CreateLabel("Status: Stopped")
 local killStatus = mainTab:CreateLabel("Auto-Kill: OFF")
 task.spawn(function()
@@ -369,7 +409,7 @@ bossTab:CreateSection("Boss Farm")
 bossTab:CreateToggle({ Name = "Enable Boss Farming", CurrentValue = config.farmBosses, Callback = function(v) config.farmBosses = v end })
 bossTab:CreateToggle({ Name = "Enable All Bosses", CurrentValue = true, Callback = function(v) for _, name in ipairs(bossList) do bossEnabled[name] = v end end })
 
-bossTab:CreateSection("Spawn Booster (si remote trouvé)")
+bossTab:CreateSection("Spawn Booster (remote)")
 bossTab:CreateToggle({ Name = "🔄 Activer Spawn Booster", CurrentValue = config.bossSpawnBooster, Callback = function(v) config.bossSpawnBooster = v end })
 bossTab:CreateDropdown({
     Name = "Méthode d'appel",
@@ -378,6 +418,14 @@ bossTab:CreateDropdown({
     Callback = function(v) config.forceSpawnMethod = v end
 })
 bossTab:CreateSlider({ Name = "Intervalle (secondes)", Range = {0.1, 3}, Increment = 0.1, CurrentValue = config.bossSpawnInterval, Callback = function(v) config.bossSpawnInterval = v end })
+
+bossTab:CreateSection("Interaction avec les autels")
+bossTab:CreateToggle({ Name = "🖱️ Clic automatique sur les autels", CurrentValue = config.clickAltars, Callback = function(v) config.clickAltars = v end })
+bossTab:CreateButton({ Name = "🔍 Scanner Workspace (autels)", Callback = scanWorkspaceForAltars })
+bossTab:CreateButton({ Name = "🖱️ Tester clic sur autels", Callback = function()
+    notify("Test", "Clic sur autels...", 2)
+    pcall(clickAllAltars)
+end })
 
 bossTab:CreateSection("Accélération du cycle")
 bossTab:CreateToggle({ Name = "⚡ Auto-Kill (recommendé)", CurrentValue = config.autoKillBosses, Callback = function(v) config.autoKillBosses = v end })
@@ -395,7 +443,7 @@ for _, name in ipairs(bossList) do
     bossTab:CreateToggle({ Name = name, CurrentValue = bossEnabled[name], Callback = function(v) bossEnabled[name] = v end })
 end
 
--- Onglet Misc (pour double saut, vitesse, etc.)
+-- Onglet Misc (double saut, vitesse)
 local miscTab = win:CreateTab("Misc")
 miscTab:CreateSection("Movement")
 local jumpConnection, jumpCount
@@ -432,4 +480,4 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
-notify("Project-Atomic", "Script chargé. Lancez le scan des remotes pour voir s'il y a un remote de spawn.", 4)
+notify("Project-Atomic", "Script chargé. Scannez Workspace pour trouver des autels.", 4)
