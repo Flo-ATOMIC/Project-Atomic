@@ -1,96 +1,88 @@
--- ==== 7. SCAN DE WORKSPACE POUR INTERACTIONS (DÉTAILLÉ) ====
-local altarObjects = {}
+-- Script de débogage : Liste tous les remotes dans ReplicatedStorage
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace") -- on peut aussi scanner Workspace au cas où
 
-local function scanWorkspaceForAltars()
-    altarObjects = {}
-    log("=== SCAN DE WORKSPACE POUR INTERACTIONS ===")
-    for _, bossName in ipairs(bossList) do
-        local zoneName = bossZoneMap[bossName]
-        local zone = Workspace.Zones:FindFirstChild(zoneName)
-        if zone then
-            for _, child in ipairs(zone:GetDescendants()) do
-                if child:IsA("ClickDetector") then
-                    local parent = child.Parent
-                    if parent and parent:IsA("BasePart") then
-                        log("ClickDetector trouvé dans", zoneName, "sur", parent.Name, "(full path:", child:GetFullName(), ")")
-                        table.insert(altarObjects, {
-                            type = "ClickDetector",
-                            detector = child,
-                            part = parent,
-                            zone = zoneName,
-                            boss = bossName
-                        })
-                    end
-                elseif child:IsA("ProximityPrompt") then
-                    log("ProximityPrompt trouvé dans", zoneName, "sur", child.Parent and child.Parent.Name or "inconnu", "(full path:", child:GetFullName(), ")")
-                    table.insert(altarObjects, {
-                        type = "ProximityPrompt",
-                        prompt = child,
-                        zone = zoneName,
-                        boss = bossName
-                    })
-                end
-            end
+local function getAllRemotes(container, path)
+    path = path or ""
+    local remotes = {}
+    for _, child in ipairs(container:GetChildren()) do
+        local childPath = path .. "/" .. child.Name
+        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+            table.insert(remotes, {
+                name = child.Name,
+                path = childPath,
+                class = child.ClassName,
+                ref = child
+            })
+        end
+        -- Récursion dans les sous-dossiers
+        local sub = getAllRemotes(child, childPath)
+        for _, r in ipairs(sub) do
+            table.insert(remotes, r)
         end
     end
-    log("=== FIN SCAN ===")
-    notify("Scan Workspace", #altarObjects .. " interactions trouvées. Voir console F9 pour les détails.", 4)
+    return remotes
 end
 
--- ==== 9. CLIC SUR LES AUTELS (amélioré) ====
-function clickAllAltars()
-    if #altarObjects == 0 then
-        scanWorkspaceForAltars()
-    end
-    for _, obj in ipairs(altarObjects) do
-        if obj.type == "ClickDetector" and obj.detector then
-            local success, err = pcall(function()
-                obj.detector:Click(LocalPlayer)
-            end)
-            if success then
-                log("Clic effectué sur ClickDetector dans", obj.zone, "pour", obj.boss)
-            else
-                log("Erreur clic sur", obj.zone, ":", err)
-            end
-        elseif obj.type == "ProximityPrompt" and obj.prompt then
-            local success, err = pcall(function()
-                -- Essayer différentes méthodes d'activation
-                obj.prompt:InputHoldBegin(LocalPlayer)
-                task.wait(0.1)
-                obj.prompt:InputHoldEnd(LocalPlayer)
-            end)
-            if success then
-                log("Prompt activé dans", obj.zone, "pour", obj.boss)
-            else
-                log("Erreur prompt sur", obj.zone, ":", err)
-            end
-        end
-        task.wait(0.2)
+-- Scanner ReplicatedStorage
+print("=== SCAN DE REPLICATEDSTORAGE ===")
+local allRemotes = getAllRemotes(ReplicatedStorage, "ReplicatedStorage")
+for _, r in ipairs(allRemotes) do
+    print(r.path, "(" .. r.class .. ")")
+end
+print("Total remotes trouvés dans ReplicatedStorage : " .. #allRemotes)
+
+-- Optionnel : Scanner Workspace (moins probable mais on sait jamais)
+print("\n=== SCAN DE WORKSPACE (pour remotes) ===")
+local workspaceRemotes = getAllRemotes(Workspace, "Workspace")
+for _, r in ipairs(workspaceRemotes) do
+    print(r.path, "(" .. r.class .. ")")
+end
+print("Total remotes trouvés dans Workspace : " .. #workspaceRemotes)
+
+-- Notification dans le jeu
+local StarterGui = game:GetService("StarterGui")
+StarterGui:SetCore("SendNotification", {
+    Title = "Remote Scanner",
+    Text = "Scan terminé. " .. #allRemotes .. " remotes trouvés. Voir console F9.",
+    Duration = 5
+})
+
+-- Petit outil supplémentaire : écouter les événements pour voir si BossEvent est utilisé
+local bossRemote = nil
+for _, r in ipairs(allRemotes) do
+    if r.name == "BossEvent" then
+        bossRemote = r.ref
+        break
     end
 end
 
--- Ajouter un bouton pour cliquer uniquement sur un autel spécifique (ex: celui de Naga)
-function clickAltarForBoss(bossName)
-    local zoneName = bossZoneMap[bossName]
-    if not zoneName then return end
-    local found = false
-    for _, obj in ipairs(altarObjects) do
-        if obj.zone == zoneName then
-            if obj.type == "ClickDetector" and obj.detector then
-                pcall(obj.detector.Click, obj.detector, LocalPlayer)
-                log("Clic manuel sur", obj.part and obj.part.Name or "inconnu", "pour", bossName)
-                found = true
-            elseif obj.type == "ProximityPrompt" and obj.prompt then
-                pcall(obj.prompt.InputHoldBegin, obj.prompt, LocalPlayer)
-                task.wait(0.1)
-                pcall(obj.prompt.InputHoldEnd, obj.prompt, LocalPlayer)
-                log("Prompt activé pour", bossName)
-                found = true
-            end
-            break
-        end
+if bossRemote then
+    print("\n=== BossEvent trouvé ! ===")
+    print("Nom :", bossRemote.Name)
+    print("Type :", bossRemote.ClassName)
+    print("Chemin :", bossRemote:GetFullName())
+    
+    -- Si c'est un RemoteEvent, on peut écouter les appels
+    if bossRemote:IsA("RemoteEvent") then
+        local conn = bossRemote.OnServerEvent:Connect(function(player, ...)
+            print("[BOSS EVENT] Appel reçu de", player.Name, "avec arguments :", ...)
+        end)
+        print("Écoute de BossEvent activée. Déclenchez un boss manuellement pour voir les arguments.")
+        task.wait(15) -- écoute pendant 15 secondes
+        conn:Disconnect()
+        print("Écoute terminée.")
+    else
+        -- RemoteFunction : on peut essayer de hook OnServerInvoke (mais attention, cela peut bloquer)
+        print("C'est un RemoteFunction. Pour voir les arguments, il faudrait modifier le script du jeu.")
     end
-    if not found then
-        notify("Aucun autel", "Pour " .. bossName .. ", scanné ?", 2)
-    end
+else
+    print("Aucun remote nommé 'BossEvent' trouvé.")
 end
+
+-- Permettre de copier la sortie console facilement (affiche un message)
+print("\n=== COPIEZ CES LIGNES POUR L'ANALYSE ===")
+for _, r in ipairs(allRemotes) do
+    print(r.path)
+end
+print("=== FIN ===")
