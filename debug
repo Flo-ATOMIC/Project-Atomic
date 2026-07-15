@@ -168,7 +168,7 @@ end
 -- ==== 9. AUTO-HATCH ====
 local function autoHatch()
     if not config.autoHatch or not HatchEggEvent then return end
-    for i = 1, 8 do
+    for i = 1, 3 do
         pcall(HatchEggEvent.FireServer, HatchEggEvent)
     end
 end
@@ -178,7 +178,7 @@ local function autoPlant()
     if not config.autoPlant or not PlantEggEvent then return end
     for zoneName, enabled in pairs(eggsSelected) do
         if enabled then
-            for i = 1, 8 do
+            for i = 1, 3 do
                 pcall(PlantEggEvent.FireServer, PlantEggEvent, zoneName)
             end
             task.wait(config.eggSpeed)
