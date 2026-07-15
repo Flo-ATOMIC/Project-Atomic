@@ -25,11 +25,14 @@ local SacrificeFunction = Functions and Functions:FindFirstChild("SacrificeFunct
 local HatchEggEvent = Events and Events:FindFirstChild("HatchEggEvent")
 local PlantEggEvent = Events and Events:FindFirstChild("PlantEggEvent")
 local FeedEggEvent = Events and Events:FindFirstChild("FeedEggEvent")
+local HatchAnimationEvent = Events and Events:FindFirstChild("HatchAnimationEvent")
 
--- ==== 3. SUPPRESSION DES ANIMATIONS (comme dans le script original) ====
+-- ==== 3. SUPPRESSION DES ANIMATIONS ====
 local function removeHatchAnimation()
-    local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("HatchAnimationEvent")
-    if ev then ev:Destroy() end
+    if HatchAnimationEvent then 
+        HatchAnimationEvent:Destroy() 
+        notify("Animations", "HatchAnimationEvent supprimé !", 1)
+    end
 end
 
 local function removeCoinsAnimation()
@@ -44,9 +47,8 @@ end
 -- Exécuter immédiatement
 pcall(removeHatchAnimation)
 pcall(removeCoinsAnimation)
-notify("Animations", "DataUpdater et DataLoaded supprimés !", 2)
 
--- ==== 4. Données des boss ====
+-- ==== 4. Données ====
 local bossZoneMap = {
     Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1", ["Tiki Monster"] = "Zone10B1",
     ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
@@ -72,7 +74,6 @@ for _, zone in ipairs(eggZones) do eggsSelected[zone] = false end
 local zoneCache = {}
 local nestCache = nil
 local lastNestUpdate = 0
-local petCache = {}
 
 -- ==== 5. Configuration ====
 local config = {
@@ -87,10 +88,12 @@ local config = {
     killSpeed = 0.001,
     eggSpeed = 0.001,
     nestSpeed = 0.001,
+    hatchCount = 50,  -- Nombre d'oeufs à éclore par cycle
+    plantCount = 50,  -- Nombre de plantations par zone
     wallspeed = 50,
 }
 
--- ==== 6. Fonctions optimisées ====
+-- ==== 6. Fonctions ====
 local function updatePets()
     local pets = {}
     if LocalPlayer.Character then
@@ -119,7 +122,7 @@ local function teleportToZone(zoneName)
     root.CFrame = CFrame.new(zone.Position + Vector3.new(0, 10, 0))
 end
 
--- ==== 7. AUTO-KILL (ultra rapide) ====
+-- ==== 7. AUTO-KILL ====
 local function killBosses()
     if not config.autoKill and not config.farmBosses then return end
     local pets = updatePets()
@@ -165,20 +168,21 @@ local function wakeUpZones()
     end
 end
 
--- ==== 9. AUTO-HATCH ====
+-- ==== 9. AUTO-HATCH ULTRA RAPIDE (SANS DELAI) ====
 local function autoHatch()
     if not config.autoHatch or not HatchEggEvent then return end
-    for i = 1, 0.5 do
+    -- Appel en boucle très rapide sans wait
+    for i = 1, config.hatchCount do
         pcall(HatchEggEvent.FireServer, HatchEggEvent)
     end
 end
 
--- ==== 10. AUTO-PLANT ====
+-- ==== 10. AUTO-PLANT ULTRA RAPIDE ====
 local function autoPlant()
     if not config.autoPlant or not PlantEggEvent then return end
     for zoneName, enabled in pairs(eggsSelected) do
         if enabled then
-            for i = 1, 8 do
+            for i = 1, config.plantCount do
                 pcall(PlantEggEvent.FireServer, PlantEggEvent, zoneName)
             end
             task.wait(config.eggSpeed)
@@ -196,7 +200,7 @@ local function autoNests()
     end
     if nestCache then
         for _, nest in ipairs(nestCache:GetChildren()) do
-            for i = 1, 5 do
+            for i = 1, 10 do
                 pcall(FeedEggEvent.FireServer, FeedEggEvent, nest)
             end
             task.wait(config.nestSpeed)
@@ -261,34 +265,49 @@ ac1 = hookmetamethod(game, "__namecall", function(self, ...)
     return ac1(self, ...)
 end)
 
--- ==== 15. BOUCLE PRINCIPALE (légère) ====
+-- ==== 15. SACRIFICE ====
+local function sacrificePet(petName)
+    if SacrificeFunction then
+        pcall(SacrificeFunction.InvokeServer, SacrificeFunction, "SacrificeWell", petName)
+    end
+end
+
+-- ==== 16. BOUCLE PRINCIPALE ====
 local active = false
 local mainThread = nil
 local killCounter = 0
 
 local function mainLoop()
     while active do
+        -- HATCH ULTRA RAPIDE (exécuté en premier et très souvent)
+        if config.autoHatch then 
+            pcall(autoHatch) 
+        end
+        
         -- Réveil des zones
-        if config.wakeZones then pcall(wakeUpZones) end
+        if config.wakeZones then 
+            pcall(wakeUpZones) 
+        end
         
         -- Auto-Kill
         if config.autoKill or config.farmBosses then 
             pcall(killBosses) 
         end
         
-        -- Auto-Hatch
-        if config.autoHatch then pcall(autoHatch) end
-        
         -- Auto-Plant
-        if config.autoPlant then pcall(autoPlant) end
+        if config.autoPlant then 
+            pcall(autoPlant) 
+        end
         
         -- Auto-Nests
-        if config.autoNests then pcall(autoNests) end
+        if config.autoNests then 
+            pcall(autoNests) 
+        end
         
         -- Vitesse
         pcall(setSpeed)
         
-        task.wait(0.02) -- Léger délai pour éviter le lag
+        task.wait(0.015)
     end
 end
 
@@ -312,11 +331,11 @@ local function stop()
     notify("Project-Atomic", "Farm arrêté.", 2)
 end
 
--- ==== 16. INTERFACE RAYFIELD ====
+-- ==== 17. INTERFACE RAYFIELD ====
 local win = Rayfield:CreateWindow({
     Name = "Project-Atomic",
     LoadingTitle = "Pet Swarm Sim",
-    LoadingSubtitle = "Ultra Optimisé",
+    LoadingSubtitle = "Hatch Ultra-Rapide",
     ConfigurationSaving = { Enabled = true, FolderName = "ATOMIC-HUB", FileName = "AtomicConfig" },
     Theme = "Amethyst"
 })
@@ -365,14 +384,18 @@ for _, name in ipairs(bossList) do
     bossTab:CreateToggle({ Name = name, CurrentValue = bossEnabled[name], Callback = function(v) bossEnabled[name] = v end })
 end
 
--- Onglet Eggs
+-- Onglet Eggs (avec options de vitesse)
 local eggTab = win:CreateTab("Eggs")
 eggTab:CreateSection("Auto Eggs")
-eggTab:CreateToggle({ Name = "🥚 Auto-Hatch", CurrentValue = config.autoHatch, Callback = function(v) config.autoHatch = v end })
+eggTab:CreateToggle({ Name = "🥚 Auto-Hatch (ULTRA RAPIDE)", CurrentValue = config.autoHatch, Callback = function(v) config.autoHatch = v end })
 eggTab:CreateToggle({ Name = "🌱 Auto-Plant", CurrentValue = config.autoPlant, Callback = function(v) config.autoPlant = v end })
 eggTab:CreateToggle({ Name = "🪹 Auto-Nests", CurrentValue = config.autoNests, Callback = function(v) config.autoNests = v end })
-eggTab:CreateSlider({ Name = "Vitesse oeufs (s)", Range = {0.001, 0.01}, Increment = 0.001, CurrentValue = config.eggSpeed, Callback = function(v) config.eggSpeed = v end })
-eggTab:CreateSlider({ Name = "Vitesse nids (s)", Range = {0.001, 0.01}, Increment = 0.001, CurrentValue = config.nestSpeed, Callback = function(v) config.nestSpeed = v end })
+
+eggTab:CreateSection("Vitesses")
+eggTab:CreateSlider({ Name = "Nombre d'oeufs par cycle Hatch", Range = {10, 100}, Increment = 5, CurrentValue = config.hatchCount, Callback = function(v) config.hatchCount = v end })
+eggTab:CreateSlider({ Name = "Nombre de plantations par zone", Range = {10, 100}, Increment = 5, CurrentValue = config.plantCount, Callback = function(v) config.plantCount = v end })
+eggTab:CreateSlider({ Name = "Vitesse Plant (s)", Range = {0.001, 0.01}, Increment = 0.001, CurrentValue = config.eggSpeed, Callback = function(v) config.eggSpeed = v end })
+eggTab:CreateSlider({ Name = "Vitesse Nests (s)", Range = {0.001, 0.01}, Increment = 0.001, CurrentValue = config.nestSpeed, Callback = function(v) config.nestSpeed = v end })
 
 eggTab:CreateSection("Sélection des oeufs")
 for _, zone in ipairs(eggZones) do
@@ -398,6 +421,10 @@ end })
 miscTab:CreateSection("Anti-Kick")
 miscTab:CreateButton({ Name = "Désactiver Anti-Kick", Callback = disableAntiKick })
 
+miscTab:CreateSection("Animations")
+miscTab:CreateButton({ Name = "Supprimer HatchAnimation", Callback = removeHatchAnimation })
+miscTab:CreateButton({ Name = "Supprimer DataUpdater/DataLoaded", Callback = removeCoinsAnimation })
+
 miscTab:CreateSection("Hotkey")
 miscTab:CreateLabel("Appuyez sur H pour cacher/afficher l'interface")
 local guiVisible = true
@@ -412,4 +439,12 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
-notify("Project-Atomic", "Script chargé ! DataUpdater supprimé.", 3)
+-- Onglet Sacrifice
+local sacrificeTab = win:CreateTab("Sacrifice")
+sacrificeTab:CreateSection("Sacrifice")
+local sacrificePets = {"Queen Bee", "King Bee", "Frozen Werewolf", "Walrus", "Fennec Fox", "Mystic Camel", "Pyro Shroom", "King Cobra", "Royal Unicorn", "Golden Octopus", "Sea Dragon", "Nebula Dragon", "Void", "Ethereal End Dragon", "Orb"}
+for _, pet in ipairs(sacrificePets) do
+    sacrificeTab:CreateButton({ Name = pet, Callback = function() sacrificePet(pet) end })
+end
+
+notify("Project-Atomic", "Script chargé ! Hatch Ultra-Rapide activable.", 3)
