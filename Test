@@ -333,31 +333,45 @@ end
 
 --Anti-AFK
 
--- Configuration
-local delay = 0.1  -- Délai entre les clics (en secondes)
-local isRunning = false
-local toggleKey = Enum.KeyCode.F5  -- Touche pour activer/désactiver
+-- ========== AUTOCLICKER SECTION (À AJOUTER) ==========
 
--- Fonction pour simuler un clic gauche
-local function click()
+-- Dans la table config (vers ligne 100), ajoute :
+autoclickerEnabled = false,
+autoclickerDelay = 0.1,
+
+-- Ajoute ces fonctions (après les autres fonctions, vers ligne 200) :
+local autoclickerConnection = nil
+
+local function performAutoclick()
     local VirtualInputManager = game:GetService("VirtualInputManager")
-    VirtualInputManager:SendMouseButtonEvent(0, true, game.Players.LocalPlayer.Character.HumanoidRootPart.Position, game)
-    task.wait(delay / 2)  -- Petit délai pour éviter les bugs
-    VirtualInputManager:SendMouseButtonEvent(0, false, game.Players.LocalPlayer.Character.HumanoidRootPart.Position, game)
+    local character = LocalPlayer.Character
+    if character then
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            VirtualInputManager:SendMouseButtonEvent(0, true, hrp.Position, game)
+            task.wait(config.autoclickerDelay / 2)
+            VirtualInputManager:SendMouseButtonEvent(0, false, hrp.Position, game)
+        end
+    end
 end
 
--- Boucle de l'autoclicker
 local function toggleAutoclicker()
-    isRunning = not isRunning
-    if isRunning then
-        print("✅ Autoclicker ACTIVÉ (Délai: " .. delay .. "s)")
-        while isRunning do
-            click()
-            task.wait(delay)
-        end
-    else
-        print("❌ Autoclicker DÉSACTIVÉ")
+    config.autoclickerEnabled = not config.autoclickerEnabled
+    if autoclickerConnection then
+        autoclickerConnection:Disconnect()
+        autoclickerConnection = nil
     end
+    if config.autoclickerEnabled then
+        autoclickerConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if config.autoclickerEnabled then
+                performAutoclick()
+            end
+        end)
+        Rayfield:Notify({Title = "Autoclicker", Content = "ACTIVATED (Delay: " .. config.autoclickerDelay .. "s)", Duration = 2})
+    else
+        Rayfield:Notify({Title = "Autoclicker", Content = "DEACTIVATED", Duration = 2})
+    end
+end
 
  
 -- Commencer le farm
@@ -468,7 +482,41 @@ speedTab:CreateSlider({ Name = "Boss Attack Delay", Range = {0.1, 1}, Increment 
 speedTab:CreateSlider({ Name = "Enemy Cycle Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = config.enemyDelay, Callback = function(v) config.enemyDelay = v end })
 speedTab:CreateSlider({ Name = "Food Cycle Delay", Range = {0.1, 3}, Increment = 0.1, CurrentValue = config.foodDelay, Callback = function(v) config.foodDelay = v end })
 speedTab:CreateSlider({ Name = "Eggs Cycle Delay", Range = {0.0001, 0.5}, Increment = 0.001, CurrentValue = config.eggDelay, Callback = function(v) config.eggDelay = v end })
-speedTab:CreateButton({ Name = "Anti-AFK", Callback = click })
+speedTab:CreateSection("Autoclicker")
+speedTab:CreateToggle({
+    Name = "Enable Autoclicker",
+    CurrentValue = config.autoclickerEnabled,
+    Callback = toggleAutoclicker
+})
+speedTab:CreateSlider({
+    Name = "Click Delay (s)",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    CurrentValue = config.autoclickerDelay,
+    Callback = function(v)
+        config.autoclickerDelay = v
+        if config.autoclickerEnabled then
+            toggleAutoclicker()
+            toggleAutoclicker()
+        end
+    end
+})
+speedTab:CreateButton({Name = "Test Click", Callback = performAutoclick})
+
+-- Dans la fonction stop() (vers ligne 300), ajoute :
+if config.autoclickerEnabled then
+    config.autoclickerEnabled = false
+    if autoclickerConnection then
+        autoclickerConnection:Disconnect()
+        autoclickerConnection = nil
+    end
+end
+
+-- Dans l'onglet Main, ajoute un label pour l'autoclicker :
+local autoclickerStatus = mainTab:CreateLabel("Autoclicker: OFF")
+
+-- Dans la boucle de status (vers ligne 150), ajoute :
+autoclickerStatus:Set("Autoclicker: " .. (config.autoclickerEnabled and "ON" or "OFF"))
 -- Enemies Tab
 local enemiesTab = win:CreateTab("Enemies")
 enemiesTab:CreateSection("Enemy Farming")
