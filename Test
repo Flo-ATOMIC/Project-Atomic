@@ -330,6 +330,35 @@ local function mainLoop()
         task.wait(0.05)
     end
 end
+
+--Anti-AFK
+
+-- Configuration
+local delay = 0.1  -- Délai entre les clics (en secondes)
+local isRunning = false
+local toggleKey = Enum.KeyCode.F5  -- Touche pour activer/désactiver
+
+-- Fonction pour simuler un clic gauche
+local function click()
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendMouseButtonEvent(0, true, game.Players.LocalPlayer.Character.HumanoidRootPart.Position, game)
+    task.wait(delay / 2)  -- Petit délai pour éviter les bugs
+    VirtualInputManager:SendMouseButtonEvent(0, false, game.Players.LocalPlayer.Character.HumanoidRootPart.Position, game)
+end
+
+-- Boucle de l'autoclicker
+local function toggleAutoclicker()
+    isRunning = not isRunning
+    if isRunning then
+        print("✅ Autoclicker ACTIVÉ (Délai: " .. delay .. "s)")
+        while isRunning do
+            click()
+            task.wait(delay)
+        end
+    else
+        print("❌ Autoclicker DÉSACTIVÉ")
+    end
+
  
 -- Commencer le farm
 local function start()
@@ -439,7 +468,7 @@ speedTab:CreateSlider({ Name = "Boss Attack Delay", Range = {0.1, 1}, Increment 
 speedTab:CreateSlider({ Name = "Enemy Cycle Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = config.enemyDelay, Callback = function(v) config.enemyDelay = v end })
 speedTab:CreateSlider({ Name = "Food Cycle Delay", Range = {0.1, 3}, Increment = 0.1, CurrentValue = config.foodDelay, Callback = function(v) config.foodDelay = v end })
 speedTab:CreateSlider({ Name = "Eggs Cycle Delay", Range = {0.0001, 0.5}, Increment = 0.001, CurrentValue = config.eggDelay, Callback = function(v) config.eggDelay = v end })
- 
+speedTab:CreateButton({ Name = "Anti-AFK", Callback = click })
 -- Enemies Tab
 local enemiesTab = win:CreateTab("Enemies")
 enemiesTab:CreateSection("Enemy Farming")
