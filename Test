@@ -310,14 +310,30 @@ local function removeCoinsAnimation()
 end
 
 --Anti-Kick
--- Dans le script AntiKickLoader, ajoute ceci :
-local AntiKickEnabled = true
+-- Configuration
+local delay = 0.1  -- Délai entre les clics (en secondes)
+local isRunning = false
+local toggleKey = Enum.KeyCode.F5  -- Touche pour activer/désactiver
 
-local function disableAntiKick()
-    AntiKickEnabled = false
-    if ac1 then
-        hookmetamethod(game, "__namecall", ac1) -- Restaure la méthode originale
-        ac1 = nil
+-- Fonction pour simuler un clic gauche
+local function click()
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendMouseButtonEvent(0, true, game.Players.LocalPlayer.Character.HumanoidRootPart.Position, game)
+    task.wait(delay / 2)  -- Petit délai pour éviter les bugs
+    VirtualInputManager:SendMouseButtonEvent(0, false, game.Players.LocalPlayer.Character.HumanoidRootPart.Position, game)
+end
+
+-- Boucle de l'autoclicker
+local function toggleAutoclicker()
+    isRunning = not isRunning
+    if isRunning then
+        print("✅ Autoclicker ACTIVÉ (Délai: " .. delay .. "s)")
+        while isRunning do
+            click()
+            task.wait(delay)
+        end
+    else
+        print("❌ Autoclicker DÉSACTIVÉ")
     end
 end
 
@@ -462,7 +478,7 @@ mainTab:CreateLabel("discord: Flo_RPMX")
 -- Speed Tab (mettre egg delay a 0.001)
 local speedTab = win:CreateTab("Speed")
 speedTab:CreateSection("Anti-kick")
-speedTab:CreateButton({ Name = "Anti-kick", Callback = disableAntiKick })
+speedTab:CreateButton({ Name = "Anti-kick", Callback = function click })
 speedTab:CreateSection("Delays")
 speedTab:CreateSlider({ Name = "Boss Attack Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = config.bossAttackDelay, Callback = function(v) config.bossAttackDelay = v end })
 speedTab:CreateSlider({ Name = "Enemy Cycle Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = config.enemyDelay, Callback = function(v) config.enemyDelay = v end })
