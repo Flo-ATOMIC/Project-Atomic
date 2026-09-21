@@ -112,7 +112,7 @@ local function interactWithBackpack(model)
 
 	local ok, err = pcall(function()
 		ProximityPromptService:InputHoldBegin(player, prompt)
-		task.wait(prompt.HoldDuration + 0.1)
+		task.wait(prompt.HoldDuration + 1)
 		ProximityPromptService:InputHoldEnd(player, prompt)
 	end)
 
