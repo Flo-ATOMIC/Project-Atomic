@@ -16,9 +16,9 @@ local playerGui = player:WaitForChild("PlayerGui")
 --------------------------------------------------------------------
 -- CONFIGURATION
 --------------------------------------------------------------------
-local TELEPORT_INTERVAL   = 10     -- pause entre chaque backpack (s)
-local DELAY_BEFORE_PROMPT = 1.5    -- attente après TP avant interaction
-local DELAY_AFTER_PROMPT  = 1.0    -- attente après interaction
+local TELEPORT_INTERVAL   = 5     -- pause entre chaque backpack (s)
+local DELAY_BEFORE_PROMPT = 0.5    -- attente après TP avant interaction
+local DELAY_AFTER_PROMPT  = 0.5    -- attente après interaction
 local DELAY_BETWEEN_LOOP  = 8      -- pause avant de reboucler
 local TELEPORT_OFFSET     = Vector3.new(0, 0, 2) -- distance du prompt
 
