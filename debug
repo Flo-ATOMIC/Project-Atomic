@@ -1,22 +1,6 @@
 --[[
     AutoBackpackTeleport.lua (LocalScript)
     À placer dans StarterPlayerScripts.
-
-    Ajoute une petite UI (bouton ON/OFF en haut à droite) pour activer
-    ou désactiver le farm automatique des models "BackPack".
-
-    Fonctionnement :
-    1) Cherche le dossier "BackPack" dans Workspace
-    2) Tant que le toggle est activé, pour chaque model nommé "BackPack" :
-       - téléporte le joueur juste à côté du model
-       - cherche la part "Handles" puis le ProximityPrompt "SearchBackpack"
-       - déclenche automatiquement l'interaction
-    3) Recommence en boucle tant que l'UI est activée
-
-    ATTENTION : Roblox restreint volontairement le déclenchement
-    automatique des ProximityPrompt (InputHoldBegin/InputHoldEnd) pour
-    éviter les scripts d'auto-farm/triche. Si ça ne fonctionne pas en
-    jeu réel, il faudra passer par un RemoteEvent validé côté serveur.
 ]]
 
 local Players = game:GetService("Players")
@@ -26,20 +10,24 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Délai (en secondes) entre chaque téléportation vers un backpack
--- Augmente cette valeur si tu as besoin de plus de temps pour interagir
-local TELEPORT_INTERVAL = 5
-
 --------------------------------------------------------------------
--- ÉTAT DU SCRIPT
+-- CONFIGURATION DES DÉLAIS (à ajuster selon tes besoins)
 --------------------------------------------------------------------
 
-local isRunning = false -- true = le farm automatique est actif
+local TELEPORT_INTERVAL   = 10    -- pause entre chaque backpack (secondes)
+local DELAY_BEFORE_PROMPT = 1.5   -- temps d'attente après la téléportation avant d'interagir
+local DELAY_AFTER_PROMPT  = 1.0   -- temps d'attente après l'interaction avant de passer au suivant
+local DELAY_BETWEEN_LOOP  = 8     -- pause avant de reboucler sur la liste complète
+local TELEPORT_OFFSET     = Vector3.new(0, 0, 4) -- distance du backpack
 
 --------------------------------------------------------------------
--- CRÉATION DE L'UI
+-- ÉTAT
 --------------------------------------------------------------------
+local isRunning = false
 
+--------------------------------------------------------------------
+-- UI
+--------------------------------------------------------------------
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AutoBackpackUI"
 screenGui.ResetOnSpawn = false
@@ -49,8 +37,7 @@ local toggleButton = Instance.new("TextButton")
 toggleButton.Name = "ToggleButton"
 toggleButton.Size = UDim2.new(0, 180, 0, 50)
 toggleButton.Position = UDim2.new(1, -200, 0, 20)
-toggleButton.AnchorPoint = Vector2.new(0, 0)
-toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60) -- rouge = désactivé
+toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 toggleButton.Text = "AutoBackpack : OFF"
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButton.Font = Enum.Font.GothamBold
@@ -62,19 +49,18 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 10)
 corner.Parent = toggleButton
 
--- Met à jour l'apparence du bouton selon l'état
 local function updateButtonAppearance()
 	if isRunning then
-		toggleButton.BackgroundColor3 = Color3.fromRGB(60, 180, 90) -- vert = activé
+		toggleButton.BackgroundColor3 = Color3.fromRGB(60, 180, 90)
 		toggleButton.Text = "AutoBackpack : ON"
 	else
-		toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60) -- rouge = désactivé
+		toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 		toggleButton.Text = "AutoBackpack : OFF"
 	end
 end
 
 --------------------------------------------------------------------
--- LOGIQUE DE TÉLÉPORTATION / INTERACTION
+-- UTILITAIRES
 --------------------------------------------------------------------
 
 local function getCharacter()
@@ -83,54 +69,142 @@ local function getCharacter()
 	return character, humanoidRootPart
 end
 
+-- Téléportation lente : on coupe le Humanoid pour éviter le "fall damage"
+-- et on attend que le personnage soit bien posé avant de rendre la main.
 local function teleportToModel(model)
 	local character, humanoidRootPart = getCharacter()
-
-	local targetPart = model.PrimaryPart or model:FindFirstChild("Handles") or model:FindFirstChildWhichIsA("BasePart", true)
-	if not targetPart then
-		warn("[AutoBackpackTeleport] Aucune part trouvée pour se téléporter dans : " .. model:GetFullName())
+	if not humanoidRootPart or not humanoidRootPart.Parent then
 		return false
 	end
 
-	local offset = Vector3.new(0, 0, 3)
-	humanoidRootPart.CFrame = CFrame.new(targetPart.Position + offset)
+	local targetPart = model.PrimaryPart
+		or model:FindFirstChild("Handles")
+		or model:FindFirstChildWhichIsA("BasePart", true)
+
+	if not targetPart then
+		warn("[AutoBackpackTeleport] Aucune part pour se téléporter dans : " .. model:GetFullName())
+		return false
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		-- On gèle brièvement le Humanoid pour éviter les chutes / dérapages
+		humanoid.PlatformStand = true
+	end
+
+	-- On place le personnage face au backpack
+	local targetCFrame = CFrame.new(targetPart.Position + TELEPORT_OFFSET, targetPart.Position)
+	humanoidRootPart.CFrame = targetCFrame
+
+	-- Laisse le temps au moteur physique de stabiliser le perso
+	task.wait(0.35)
+
+	if humanoid then
+		humanoid.PlatformStand = false
+	end
+
 	return true
+end
+
+--------------------------------------------------------------------
+-- INTERACTION AVEC LE PROXIMITYPROMPT
+--------------------------------------------------------------------
+
+-- Essaie plusieurs stratégies dans l'ordre, jusqu'à ce qu'une fonctionne.
+local function tryTriggerPrompt(prompt)
+	if not prompt or not prompt:IsA("ProximityPrompt") then
+		return false
+	end
+
+	if not prompt.Enabled then
+		warn("[AutoBackpackTeleport] Prompt désactivé : " .. prompt:GetFullName())
+		return false
+	end
+
+	-- Vérification de distance (le serveur rejette si trop loin)
+	local character, hrp = getCharacter()
+	local rootPart = prompt.Parent
+	if rootPart and rootPart:IsA("BasePart") and hrp then
+		local dist = (rootPart.Position - hrp.Position).Magnitude
+		if dist > (prompt.MaxActivationDistance or 10) then
+			warn(string.format("[AutoBackpackTeleport] Trop loin du prompt (%.1f studs).", dist))
+			return false
+		end
+	end
+
+	-- STRATÉGIE 1 : méthodes officielles côté client
+	local ok1 = pcall(function()
+		prompt:InputHoldBegin()
+	end)
+	if ok1 then
+		task.wait((prompt.HoldDuration or 0) + 0.2)
+		pcall(function()
+			prompt:InputHoldEnd()
+		end)
+		return true
+	end
+
+	-- STRATÉGIE 2 : via ProximityPromptService (fallback)
+	local ok2 = pcall(function()
+		ProximityPromptService:InputHoldBegin(player, prompt)
+	end)
+	if ok2 then
+		task.wait((prompt.HoldDuration or 0) + 0.2)
+		pcall(function()
+			ProximityPromptService:InputHoldEnd(player, prompt)
+		end)
+		return true
+	end
+
+	-- STRATÉGIE 3 : déclencher directement le signal Triggered (si exposé)
+	local ok3 = pcall(function()
+		prompt:InputHoldBegin()
+		task.wait((prompt.HoldDuration or 0) + 0.2)
+		prompt:InputHoldEnd()
+	end)
+	if ok3 then
+		return true
+	end
+
+	warn("[AutoBackpackTeleport] Aucune méthode n'a pu déclencher le prompt.")
+	return false
 end
 
 local function interactWithBackpack(model)
 	local handles = model:FindFirstChild("Handles")
 	if not handles then
-		warn("[AutoBackpackTeleport] Part 'Handles' introuvable dans : " .. model:GetFullName())
-		return
+		warn("[AutoBackpackTeleport] 'Handles' introuvable dans : " .. model:GetFullName())
+		return false
 	end
 
 	local prompt = handles:FindFirstChild("SearchBackpack")
-	if not prompt or not prompt:IsA("ProximityPrompt") then
-		warn("[AutoBackpackTeleport] ProximityPrompt 'SearchBackpack' introuvable dans : " .. handles:GetFullName())
-		return
+	if not prompt then
+		warn("[AutoBackpackTeleport] 'SearchBackpack' introuvable dans : " .. handles:GetFullName())
+		return false
 	end
 
-	local ok, err = pcall(function()
-		ProximityPromptService:InputHoldBegin(player, prompt)
-		task.wait(prompt.HoldDuration + 1)
-		ProximityPromptService:InputHoldEnd(player, prompt)
-	end)
-
-	if not ok then
-		warn("[AutoBackpackTeleport] Impossible de déclencher le prompt automatiquement : " .. tostring(err))
-	end
+	return tryTriggerPrompt(prompt)
 end
 
 local function processBackpackModel(model)
-	local teleported = teleportToModel(model)
-	if not teleported then
+	if not teleportToModel(model) then
 		return
 	end
-	task.wait(0.5)
-	interactWithBackpack(model)
+
+	-- Attente avant d'interagir (le temps que la position soit bien prise en compte)
+	task.wait(DELAY_BEFORE_PROMPT)
+
+	local success = interactWithBackpack(model)
+	if not success then
+		warn("[AutoBackpackTeleport] Interaction échouée pour : " .. model:GetFullName())
+	end
+
+	task.wait(DELAY_AFTER_PROMPT)
 end
 
--- Boucle principale : tourne tant que isRunning est vrai
+--------------------------------------------------------------------
+-- BOUCLE PRINCIPALE
+--------------------------------------------------------------------
 local function runLoop()
 	while isRunning do
 		local folder = Workspace:FindFirstChild("BackPack")
@@ -140,23 +214,24 @@ local function runLoop()
 		end
 
 		for _, model in ipairs(folder:GetChildren()) do
-			if not isRunning then
-				break
-			end
+			if not isRunning then break end
 			if model:IsA("Model") and model.Name == "BackPack" then
 				processBackpackModel(model)
-				task.wait(TELEPORT_INTERVAL)
+				if isRunning then
+					task.wait(TELEPORT_INTERVAL)
+				end
 			end
 		end
 
-		task.wait(TELEPORT_INTERVAL) -- pause avant de reboucler sur tous les backpacks
+		if isRunning then
+			task.wait(DELAY_BETWEEN_LOOP)
+		end
 	end
 end
 
 --------------------------------------------------------------------
--- CONNEXION DU BOUTON
+-- BOUTON
 --------------------------------------------------------------------
-
 toggleButton.MouseButton1Click:Connect(function()
 	isRunning = not isRunning
 	updateButtonAppearance()
