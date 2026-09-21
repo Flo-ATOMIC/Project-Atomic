@@ -1,60 +1,75 @@
-local function debugPrompt(prompt)
-	print("---- Prompt debug ----")
-	print("Nom       :", prompt:GetFullName())
-	print("Enabled   :", prompt.Enabled)
-	print("Distance  :", prompt.MaxActivationDistance)
-	print("HoldDur   :", prompt.HoldDuration)
-	print("LineOfSight:", prompt.RequiresLineOfSight)
-	print("ObjectText:", prompt.ObjectText)
-	print("ActionText:", prompt.ActionText)
-	print("KeyboardKeyCode:", prompt.KeyboardKeyCode)
-	print("----------------------")
+local function teleportToModel(model)
+	local character, humanoidRootPart = getCharacter()
+	if not humanoidRootPart or not humanoidRootPart.Parent then
+		return false
+	end
+
+	-- 👇 on cherche "Handle" (sans s), avec fallback
+	local targetPart = model.PrimaryPart
+		or model:FindFirstChild("Handle")
+		or model:FindFirstChildWhichIsA("BasePart", true)
+
+	if not targetPart then
+		warn("[AutoBackpackTeleport] Aucune part pour se téléporter dans : " .. model:GetFullName())
+		return false
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.PlatformStand = true
+	end
+
+	local targetCFrame = CFrame.new(targetPart.Position + TELEPORT_OFFSET, targetPart.Position)
+	humanoidRootPart.CFrame = targetCFrame
+
+	task.wait(0.35)
+
+	if humanoid then
+		humanoid.PlatformStand = false
+	end
+
+	return true
 end
 
-local function tryTriggerPrompt(prompt)
-	if not prompt or not prompt:IsA("ProximityPrompt") then return false end
+local function interactWithBackpack(model)
+	-- 👇 "Handle" au singulier
+	local handle = model:FindFirstChild("Handle")
+	if not handle then
+		warn("[AutoBackpackTeleport] 'Handle' introuvable dans : " .. model:GetFullName())
+		return false
+	end
+
+	local prompt = handle:FindFirstChild("SearchBackpack")
+	if not prompt then
+		warn("[AutoBackpackTeleport] 'SearchBackpack' introuvable dans : " .. handle:GetFullName())
+		return false
+	end
+
+	if not prompt:IsA("ProximityPrompt") then
+		warn("[AutoBackpackTeleport] 'SearchBackpack' n'est pas un ProximityPrompt.")
+		return false
+	end
+
 	if not prompt.Enabled then
-		warn("Prompt désactivé.")
+		warn("[AutoBackpackTeleport] Prompt désactivé.")
 		return false
 	end
 
-	-- Vérif distance
-	local character = player.Character
-	local hrp = character and character:FindFirstChild("HumanoidRootPart")
-	local targetPart = prompt.Parent
-	if hrp and targetPart and targetPart:IsA("BasePart") then
-		local dist = (hrp.Position - targetPart.Position).Magnitude
-		print(string.format("[AutoBackpack] Distance au prompt : %.2f studs (max %d)",
-			dist, prompt.MaxActivationDistance))
-		if dist > prompt.MaxActivationDistance then
-			warn("Trop loin — je me rapproche d'abord.")
-			hrp.CFrame = CFrame.new(targetPart.Position + Vector3.new(0, 0, 2))
-			task.wait(0.4)
-		end
-	end
-
-	debugPrompt(prompt)
-
-	-- Appel direct : c'est CE QUE FAIT LA TOUCHE E en interne
-	local okBegin, errBegin = pcall(function()
-		prompt:InputHoldBegin()
-	end)
+	-- Appel direct = équivalent à appuyer sur E
+	local okBegin, err = pcall(function() prompt:InputHoldBegin() end)
 	if not okBegin then
-		warn("InputHoldBegin a échoué : " .. tostring(errBegin))
+		warn("[AutoBackpackTeleport] InputHoldBegin a échoué : " .. tostring(err))
 		return false
 	end
 
-	print("Hold commencé, attente de", prompt.HoldDuration, "s")
-	task.wait((prompt.HoldDuration or 0.5) + 0.3)
+	task.wait((prompt.HoldDuration or 0.5) + 0.2)
 
-	local okEnd, errEnd = pcall(function()
-		prompt:InputHoldEnd()
-	end)
+	local okEnd, errEnd = pcall(function() prompt:InputHoldEnd() end)
 	if not okEnd then
-		warn("InputHoldEnd a échoué : " .. tostring(errEnd))
+		warn("[AutoBackpackTeleport] InputHoldEnd a échoué : " .. tostring(errEnd))
 		return false
 	end
 
-	print("Prompt déclenché ✅")
+	print("[AutoBackpackTeleport] Prompt déclenché ✅ sur " .. model:GetFullName())
 	return true
 end
