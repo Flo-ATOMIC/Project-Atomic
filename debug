@@ -1,1 +1,163 @@
+--[[
+    AutoBackpackTeleport.lua (LocalScript)
+    À placer dans StarterPlayerScripts.
 
+    Ajoute une petite UI (bouton ON/OFF en haut à droite) pour activer
+    ou désactiver le farm automatique des models "BackPack".
+
+    Fonctionnement :
+    1) Cherche le dossier "BackPack" dans Workspace
+    2) Tant que le toggle est activé, pour chaque model nommé "BackPack" :
+       - téléporte le joueur juste à côté du model
+       - cherche la part "Handles" puis le ProximityPrompt "SearchBackpack"
+       - déclenche automatiquement l'interaction
+    3) Recommence en boucle tant que l'UI est activée
+
+    ATTENTION : Roblox restreint volontairement le déclenchement
+    automatique des ProximityPrompt (InputHoldBegin/InputHoldEnd) pour
+    éviter les scripts d'auto-farm/triche. Si ça ne fonctionne pas en
+    jeu réel, il faudra passer par un RemoteEvent validé côté serveur.
+]]
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--------------------------------------------------------------------
+-- ÉTAT DU SCRIPT
+--------------------------------------------------------------------
+
+local isRunning = false -- true = le farm automatique est actif
+
+--------------------------------------------------------------------
+-- CRÉATION DE L'UI
+--------------------------------------------------------------------
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoBackpackUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0, 180, 0, 50)
+toggleButton.Position = UDim2.new(1, -200, 0, 20)
+toggleButton.AnchorPoint = Vector2.new(0, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60) -- rouge = désactivé
+toggleButton.Text = "AutoBackpack : OFF"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 16
+toggleButton.BorderSizePixel = 0
+toggleButton.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = toggleButton
+
+-- Met à jour l'apparence du bouton selon l'état
+local function updateButtonAppearance()
+	if isRunning then
+		toggleButton.BackgroundColor3 = Color3.fromRGB(60, 180, 90) -- vert = activé
+		toggleButton.Text = "AutoBackpack : ON"
+	else
+		toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60) -- rouge = désactivé
+		toggleButton.Text = "AutoBackpack : OFF"
+	end
+end
+
+--------------------------------------------------------------------
+-- LOGIQUE DE TÉLÉPORTATION / INTERACTION
+--------------------------------------------------------------------
+
+local function getCharacter()
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+	return character, humanoidRootPart
+end
+
+local function teleportToModel(model)
+	local character, humanoidRootPart = getCharacter()
+
+	local targetPart = model.PrimaryPart or model:FindFirstChild("Handles") or model:FindFirstChildWhichIsA("BasePart", true)
+	if not targetPart then
+		warn("[AutoBackpackTeleport] Aucune part trouvée pour se téléporter dans : " .. model:GetFullName())
+		return false
+	end
+
+	local offset = Vector3.new(0, 0, 3)
+	humanoidRootPart.CFrame = CFrame.new(targetPart.Position + offset)
+	return true
+end
+
+local function interactWithBackpack(model)
+	local handles = model:FindFirstChild("Handles")
+	if not handles then
+		warn("[AutoBackpackTeleport] Part 'Handles' introuvable dans : " .. model:GetFullName())
+		return
+	end
+
+	local prompt = handles:FindFirstChild("SearchBackpack")
+	if not prompt or not prompt:IsA("ProximityPrompt") then
+		warn("[AutoBackpackTeleport] ProximityPrompt 'SearchBackpack' introuvable dans : " .. handles:GetFullName())
+		return
+	end
+
+	local ok, err = pcall(function()
+		ProximityPromptService:InputHoldBegin(player, prompt)
+		task.wait(prompt.HoldDuration + 0.1)
+		ProximityPromptService:InputHoldEnd(player, prompt)
+	end)
+
+	if not ok then
+		warn("[AutoBackpackTeleport] Impossible de déclencher le prompt automatiquement : " .. tostring(err))
+	end
+end
+
+local function processBackpackModel(model)
+	local teleported = teleportToModel(model)
+	if not teleported then
+		return
+	end
+	task.wait(0.5)
+	interactWithBackpack(model)
+end
+
+-- Boucle principale : tourne tant que isRunning est vrai
+local function runLoop()
+	while isRunning do
+		local folder = Workspace:FindFirstChild("BackPack")
+		if not folder then
+			warn("[AutoBackpackTeleport] Dossier 'BackPack' introuvable dans Workspace.")
+			break
+		end
+
+		for _, model in ipairs(folder:GetChildren()) do
+			if not isRunning then
+				break
+			end
+			if model:IsA("Model") and model.Name == "BackPack" then
+				processBackpackModel(model)
+				task.wait(1)
+			end
+		end
+
+		task.wait(1) -- pause avant de reboucler sur tous les backpacks
+	end
+end
+
+--------------------------------------------------------------------
+-- CONNEXION DU BOUTON
+--------------------------------------------------------------------
+
+toggleButton.MouseButton1Click:Connect(function()
+	isRunning = not isRunning
+	updateButtonAppearance()
+
+	if isRunning then
+		task.spawn(runLoop)
+	end
+end)
