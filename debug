@@ -26,6 +26,10 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Délai (en secondes) entre chaque téléportation vers un backpack
+-- Augmente cette valeur si tu as besoin de plus de temps pour interagir
+local TELEPORT_INTERVAL = 5
+
 --------------------------------------------------------------------
 -- ÉTAT DU SCRIPT
 --------------------------------------------------------------------
@@ -141,11 +145,11 @@ local function runLoop()
 			end
 			if model:IsA("Model") and model.Name == "BackPack" then
 				processBackpackModel(model)
-				task.wait(1)
+				task.wait(TELEPORT_INTERVAL)
 			end
 		end
 
-		task.wait(1) -- pause avant de reboucler sur tous les backpacks
+		task.wait(TELEPORT_INTERVAL) -- pause avant de reboucler sur tous les backpacks
 	end
 end
 
