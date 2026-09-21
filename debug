@@ -1,75 +1,239 @@
-local function teleportToModel(model)
-	local character, humanoidRootPart = getCharacter()
-	if not humanoidRootPart or not humanoidRootPart.Parent then
-		return false
+--[[
+    AutoBackpackTeleport.lua (LocalScript)
+    À placer dans StarterPlayerScripts.
+    Version 2 — cherche le ProximityPrompt partout dans le modèle (plus de dépendance à "Handle"/"Handles").
+]]
+
+-- ============ VÉRIF DE VERSION ============
+print("[AutoBackpack] >>> SCRIPT V2 CHARGÉ <<<")
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--------------------------------------------------------------------
+-- CONFIGURATION
+--------------------------------------------------------------------
+local TELEPORT_INTERVAL   = 10     -- pause entre chaque backpack (s)
+local DELAY_BEFORE_PROMPT = 1.5    -- attente après TP avant interaction
+local DELAY_AFTER_PROMPT  = 1.0    -- attente après interaction
+local DELAY_BETWEEN_LOOP  = 8      -- pause avant de reboucler
+local TELEPORT_OFFSET     = Vector3.new(0, 0, 2) -- distance du prompt
+
+local BACKPACK_FOLDER_NAME = "BackPack"   -- nom du dossier dans Workspace
+local BACKPACK_MODEL_NAME  = "BackPack"   -- nom des models à traiter
+local PROMPT_NAME          = "SearchBackpack" -- nom du ProximityPrompt
+
+--------------------------------------------------------------------
+-- ÉTAT
+--------------------------------------------------------------------
+local isRunning = false
+
+--------------------------------------------------------------------
+-- UI
+--------------------------------------------------------------------
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoBackpackUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0, 180, 0, 50)
+toggleButton.Position = UDim2.new(1, -200, 0, 20)
+toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+toggleButton.Text = "AutoBackpack : OFF"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.TextSize = 16
+toggleButton.BorderSizePixel = 0
+toggleButton.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = toggleButton
+
+local function updateButtonAppearance()
+	if isRunning then
+		toggleButton.BackgroundColor3 = Color3.fromRGB(60, 180, 90)
+		toggleButton.Text = "AutoBackpack : ON"
+	else
+		toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+		toggleButton.Text = "AutoBackpack : OFF"
 	end
+end
 
-	-- 👇 on cherche "Handle" (sans s), avec fallback
-	local targetPart = model.PrimaryPart
-		or model:FindFirstChild("Handle")
-		or model:FindFirstChildWhichIsA("BasePart", true)
+--------------------------------------------------------------------
+-- UTILITAIRES
+--------------------------------------------------------------------
+local function getCharacter()
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+	return character, humanoidRootPart
+end
 
+-- Cherche le ProximityPrompt n'importe où dans le modèle
+local function findPrompt(model)
+	-- 1) Priorité : un prompt nommé "SearchBackpack"
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("ProximityPrompt") and d.Name == PROMPT_NAME then
+			return d
+		end
+	end
+	-- 2) Sinon : n'importe quel ProximityPrompt du modèle
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("ProximityPrompt") then
+			return d
+		end
+	end
+	return nil
+end
+
+-- Renvoie la BasePart sur laquelle est accroché le prompt (ou fallback)
+local function getAnchorPart(prompt, model)
+	local anchor = prompt and prompt.Parent
+	if anchor and anchor:IsA("BasePart") then
+		return anchor
+	end
+	-- Fallback : la première BasePart du modèle
+	return model:FindFirstChildWhichIsA("BasePart", true)
+end
+
+--------------------------------------------------------------------
+-- TÉLÉPORTATION
+--------------------------------------------------------------------
+local function teleportToPart(targetPart)
+	local character, hrp = getCharacter()
+	if not hrp or not hrp.Parent then return false end
 	if not targetPart then
-		warn("[AutoBackpackTeleport] Aucune part pour se téléporter dans : " .. model:GetFullName())
+		warn("[AutoBackpack] Pas de part cible pour se TP.")
 		return false
 	end
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid.PlatformStand = true
-	end
+	if humanoid then humanoid.PlatformStand = true end
 
+	-- On se met devant la part, orienté vers elle
 	local targetCFrame = CFrame.new(targetPart.Position + TELEPORT_OFFSET, targetPart.Position)
-	humanoidRootPart.CFrame = targetCFrame
+	hrp.CFrame = targetCFrame
 
 	task.wait(0.35)
 
-	if humanoid then
-		humanoid.PlatformStand = false
-	end
-
+	if humanoid then humanoid.PlatformStand = false end
 	return true
 end
 
-local function interactWithBackpack(model)
-	-- 👇 "Handle" au singulier
-	local handle = model:FindFirstChild("Handle")
-	if not handle then
-		warn("[AutoBackpackTeleport] 'Handle' introuvable dans : " .. model:GetFullName())
+--------------------------------------------------------------------
+-- INTERACTION (équivalent d'appuyer sur E)
+--------------------------------------------------------------------
+local function interactWithPrompt(prompt)
+	if not prompt or not prompt:IsA("ProximityPrompt") then
+		warn("[AutoBackpack] Prompt invalide.")
 		return false
 	end
 
-	local prompt = handle:FindFirstChild("SearchBackpack")
-	if not prompt then
-		warn("[AutoBackpackTeleport] 'SearchBackpack' introuvable dans : " .. handle:GetFullName())
-		return false
-	end
-
-	if not prompt:IsA("ProximityPrompt") then
-		warn("[AutoBackpackTeleport] 'SearchBackpack' n'est pas un ProximityPrompt.")
-		return false
-	end
+	print(string.format(
+		"[AutoBackpack] Prompt : %s | KeyCode=%s | HoldDuration=%.2f | Enabled=%s",
+		prompt:GetFullName(),
+		tostring(prompt.KeyboardKeyCode),
+		prompt.HoldDuration or 0,
+		tostring(prompt.Enabled)
+	))
 
 	if not prompt.Enabled then
-		warn("[AutoBackpackTeleport] Prompt désactivé.")
+		warn("[AutoBackpack] Prompt désactivé.")
 		return false
 	end
 
-	-- Appel direct = équivalent à appuyer sur E
-	local okBegin, err = pcall(function() prompt:InputHoldBegin() end)
+	-- Vérif distance
+	local _, hrp = getCharacter()
+	local anchor = prompt.Parent
+	if hrp and anchor and anchor:IsA("BasePart") then
+		local dist = (hrp.Position - anchor.Position).Magnitude
+		print(string.format("[AutoBackpack] Distance au prompt : %.2f studs (max %d)",
+			dist, prompt.MaxActivationDistance))
+	end
+
+	-- InputHoldBegin = exactement ce que fait la touche E en interne
+	local okBegin, errBegin = pcall(function()
+		prompt:InputHoldBegin()
+	end)
 	if not okBegin then
-		warn("[AutoBackpackTeleport] InputHoldBegin a échoué : " .. tostring(err))
+		warn("[AutoBackpack] InputHoldBegin a échoué : " .. tostring(errBegin))
 		return false
 	end
 
 	task.wait((prompt.HoldDuration or 0.5) + 0.2)
 
-	local okEnd, errEnd = pcall(function() prompt:InputHoldEnd() end)
+	local okEnd, errEnd = pcall(function()
+		prompt:InputHoldEnd()
+	end)
 	if not okEnd then
-		warn("[AutoBackpackTeleport] InputHoldEnd a échoué : " .. tostring(errEnd))
+		warn("[AutoBackpack] InputHoldEnd a échoué : " .. tostring(errEnd))
 		return false
 	end
 
-	print("[AutoBackpackTeleport] Prompt déclenché ✅ sur " .. model:GetFullName())
+	print("[AutoBackpack] Prompt déclenché ✅")
 	return true
 end
+
+--------------------------------------------------------------------
+-- TRAITEMENT D'UN BACKPACK
+--------------------------------------------------------------------
+local function processBackpackModel(model)
+	local prompt = findPrompt(model)
+	if not prompt then
+		warn("[AutoBackpack] Aucun ProximityPrompt dans : " .. model:GetFullName())
+		return
+	end
+
+	local anchor = getAnchorPart(prompt, model)
+	if not teleportToPart(anchor) then
+		return
+	end
+
+	task.wait(DELAY_BEFORE_PROMPT)
+	interactWithPrompt(prompt)
+	task.wait(DELAY_AFTER_PROMPT)
+end
+
+--------------------------------------------------------------------
+-- BOUCLE PRINCIPALE
+--------------------------------------------------------------------
+local function runLoop()
+	while isRunning do
+		local folder = Workspace:FindFirstChild(BACKPACK_FOLDER_NAME)
+		if not folder then
+			warn("[AutoBackpack] Dossier '" .. BACKPACK_FOLDER_NAME .. "' introuvable dans Workspace.")
+			break
+		end
+
+		for _, model in ipairs(folder:GetChildren()) do
+			if not isRunning then break end
+			if model:IsA("Model") and model.Name == BACKPACK_MODEL_NAME then
+				processBackpackModel(model)
+				if isRunning then
+					task.wait(TELEPORT_INTERVAL)
+				end
+			end
+		end
+
+		if isRunning then
+			task.wait(DELAY_BETWEEN_LOOP)
+		end
+	end
+end
+
+--------------------------------------------------------------------
+-- BOUTON
+--------------------------------------------------------------------
+toggleButton.MouseButton1Click:Connect(function()
+	isRunning = not isRunning
+	updateButtonAppearance()
+
+	if isRunning then
+		task.spawn(runLoop)
+	end
+end)
