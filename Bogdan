@@ -281,6 +281,33 @@ Title = "Sacrifice", Text = petName .. " sacrificed!", Duration = 1
 end
 end
 end
+
+-- Remove animation
+local function removeHatchAnimation()
+local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Events") and ReplicatedStorage.Remotes.Events:FindFirstChild("HatchAnimationEvent")
+if ev then ev:Destroy() end
+end
+
+--Remove coins
+local function removeCoinsAnimation()
+local events = ReplicatedStorage
+and ReplicatedStorage:FindFirstChild("Remotes")
+and ReplicatedStorage.Remotes:FindFirstChild("Events")
+
+if not events then return end
+
+local dataUpdater = events:FindFirstChild("DataUpdater")
+local dataLoaded = events:FindFirstChild("DataLoaded")
+
+if dataUpdater then
+dataUpdater:Destroy()
+end
+
+if dataLoaded then
+dataLoaded:Destroy()
+end
+end
+
 -- Sistema de tarefas (loop principal)
 local active = false
 local mainThread = nil
@@ -465,6 +492,8 @@ eggTab:CreateSection("Eggs Control")
 eggTab:CreateToggle({ Name = "Auto Plant", CurrentValue = config.autoPlant, Callback = function(v) config.autoPlant = v end })
 eggTab:CreateToggle({ Name = "Auto Hatch", CurrentValue = config.autoHatch, Callback = function(v) config.autoHatch = v end })
 eggTab:CreateToggle({ Name = "Auto Nests", CurrentValue = config.autoNests, Callback = function(v) config.autoNests = v end })
+eggTab:CreateButton({ Name = "Remove Hatch Animation", Callback = removeHatchAnimation })
+eggTab:CreateButton({ Name = "Remove Coins Animation", Callback = removeCoinsAnimation })
 
 eggTab:CreateSection("Select Eggs")
 for _, egg in ipairs(eggData) do
