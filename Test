@@ -1,1 +1,76 @@
+-- [[ CHARGEMENT DE FLUENT ]] --
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
+-- [[ CONFIGURATION DE L'API ]] --
+-- (On verra comment créer cette API à l'étape 2)
+local API_URL = "https://ton-site-web.com/api/check_key" 
+
+-- Création de la fenêtre pour la clé
+local KeyWindow = Fluent:CreateWindow({
+    Title = "Project Atomic - Accès",
+    SubTitle = "Système de clé",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(450, 300),
+    Acrylic = true,
+    Theme = "Dark",
+})
+
+local KeyTab = KeyWindow:AddTab({ Title = "Authentification", Icon = "key" })
+
+-- Variable pour stocker l'état de connexion
+local isAuthenticated = false
+
+KeyTab:AddParagraph({
+    Title = "Veuillez entrer votre clé d'accès.",
+    Content = "Obtenez une clé sur notre Discord pour utiliser le script."
+})
+
+KeyTab:AddTextbox({
+    Title = "Clé d'accès",
+    Default = "",
+    TextDisappear = false,
+    Callback = function(Text)
+        -- On stocke la clé tapée par l'utilisateur
+        _G.UserKey = Text
+    end
+})
+
+KeyTab:AddButton({
+    Title = "Valider la clé",
+    Description = "Cliquez pour vérifier votre clé",
+    Callback = function()
+        local key = _G.UserKey
+        if not key or key == "" then
+            Fluent:Notify({ Title = "Erreur", Content = "Veuillez entrer une clé.", Duration = 3 })
+            return
+        end
+
+        -- On affiche une notification de chargement
+        Fluent:Notify({ Title = "Vérification", Content = "Connexion au serveur...", Duration = 3 })
+
+        -- Envoi de la requête au serveur (API)
+        -- Note : On utilise pcall car certains exécuteurs bloquent les requêtes HTTP
+        local success, response = pcall(function()
+            -- On ajoute l'ID du joueur à la requête pour lier la clé au compte
+            local playerId = game.Players.LocalPlayer.UserId
+            return game:HttpGet(API_URL .. "?key=" .. key .. "&userid=" .. playerId)
+        end)
+
+        if success then
+            if response == "VALID" then
+                -- La clé est valide !
+                isAuthenticated = true
+                KeyWindow:Destroy() -- On ferme la fenêtre de clé
+                Fluent:Notify({ Title = "Succès", Content = "Clé validée ! Chargement du script...", Duration = 5 })
+                
+                -- On lance le script principal
+                loadstring(game:HttpGet("https://pastebin.com/raw/TON_SCRIPT_PRINCIPAL"))()
+            else
+                -- La clé est invalide
+                Fluent:Notify({ Title = "Erreur", Content = "Clé invalide ou expirée.", Duration = 5 })
+            end
+        else
+            Fluent:Notify({ Title = "Erreur", Content = "Impossible de contacter le serveur.", Duration = 5 })
+        end
+    end
+})
