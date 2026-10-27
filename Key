@@ -1,14 +1,38 @@
 -- ============================================================
--- SYSTÈME DE CLÉ - BLACK HOLE HUB
+-- SYSTÈME DE CLÉ - BLACK HOLE HUB (Version Xeno/PC)
 -- ============================================================
 local player = game.Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 
 -- 🔗 TON LIEN GOOGLE APPS SCRIPT
 local API_URL = "https://script.google.com/macros/s/AKfycbzKRhr8xLOIysRv2sDbjPwNDfAls8AkWGTa8N7ivjQtae_hYEVI1wBwG3Le_yP9Q4PRLw/exec"
 
--- 🔗 TON LIEN GITHUB (Le script WindUI qu'on vient de faire)
-local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Black-Hole-Hub"
+-- 🔗 TON LIEN GITHUB (Le script WindUI)
+local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Sunky"
+
+-- ============================================================
+-- FONCTION DE REQUÊTE ROBUSTE
+-- ============================================================
+local function MakeRequest(url)
+    -- On essaie d'abord avec request (disponible sur Xeno et la plupart des exécuteurs PC)
+    if request then
+        local success, response = pcall(function()
+            return request({
+                Url = url,
+                Method = "GET"
+            })
+        end)
+        if success and response and response.Body then
+            return true, response.Body
+        end
+    end
+    
+    -- Si request échoue ou n'existe pas, on tente game:HttpGet (fallback)
+    local success, response = pcall(function()
+        return game:HttpGet(url)
+    end)
+    return success, response
+end
 
 -- ============================================================
 -- CRÉATION DE L'INTERFACE DE CLÉ
@@ -66,7 +90,7 @@ BoxCorner.Parent = TextBox
 local Btn = Instance.new("TextButton")
 Btn.Size = UDim2.new(0.8, 0, 0, 40)
 Btn.Position = UDim2.new(0.1, 0, 0, 150)
-Btn.BackgroundColor3 = Color3.fromRGB(150, 50, 255) -- Violet assorti au menu
+Btn.BackgroundColor3 = Color3.fromRGB(150, 50, 255)
 Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 Btn.Text = "Valider la clé"
 Btn.Font = Enum.Font.GothamBold
@@ -88,7 +112,7 @@ Msg.TextSize = 14
 Msg.Parent = KeyFrame
 
 -- ============================================================
--- LOGIQUE DE VÉRIFICATION
+-- LOGIQUE DU BOUTON
 -- ============================================================
 Btn.MouseButton1Click:Connect(function()
     local key = TextBox.Text
@@ -104,23 +128,24 @@ Btn.MouseButton1Click:Connect(function()
     Btn.Active = false
     Btn.Text = "Chargement..."
 
-    -- On prépare l'URL avec la clé et l'UserID
-    local requestUrl = API_URL .. "?key=" .. key .. "&userid=" .. tostring(player.UserId)
+    -- On encode la clé pour éviter les bugs si tu as mis un espace
+    local safeKey = HttpService:UrlEncode(key)
+    local requestUrl = API_URL .. "?key=" .. safeKey .. "&userid=" .. tostring(player.UserId)
     
-    -- On utilise pcall pour éviter que le script crash si l'exécuteur bloque les requêtes HTTP
-    local success, response = pcall(function()
-        return game:HttpGet(requestUrl)
-    end)
+    -- Appel de notre fonction robuste
+    local success, response = MakeRequest(requestUrl)
 
-    if success then
+    if success and response then
+        print("[Debug KeySystem] Réponse du serveur :", response) -- Utile pour voir dans la console (F9)
+        
         -- On vérifie si la réponse contient "VALID"
         if string.find(response, "VALID") then
             Msg.TextColor3 = Color3.fromRGB(0, 255, 0)
             Msg.Text = "Clé validée ! Chargement du menu..."
             task.wait(1)
-            KeyGui:Destroy() -- On ferme l'interface de clé
+            KeyGui:Destroy()
             
-            -- ✅ ON CHARGE LE MENU WINDUI DEPUIS GITHUB
+            -- Chargement du menu WindUI
             local loadSuccess, loadErr = pcall(function()
                 loadstring(game:HttpGet(SCRIPT_URL))()
             end)
@@ -133,18 +158,16 @@ Btn.MouseButton1Click:Connect(function()
                 })
             end
         else
-            -- Si la réponse est INVALID ou autre chose
             Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
             Msg.Text = "Clé invalide ou déjà liée à un autre compte."
             Btn.Active = true
             Btn.Text = "Valider la clé"
         end
     else
-        -- Si la requête HTTP a échoué (bloquée par l'exécuteur ou pas de connexion)
         Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
-        Msg.Text = "Erreur réseau. L'exécuteur bloque peut-être l'accès."
+        Msg.Text = "Erreur réseau (Vérifie la console F9)."
         Btn.Active = true
         Btn.Text = "Valider la clé"
-        warn("[KeySystem] Erreur HTTP : " .. tostring(response))
+        warn("[KeySystem] Erreur de requête : " .. tostring(response))
     end
 end)
