@@ -225,53 +225,34 @@ end
 local AutoFeedEgg = false
 
 local function GetNests()
-
-    local nestsFolder =
-        workspace:FindFirstChild(
-            "Nests"
-        )
-
+    local nestsFolder = workspace:FindFirstChild("Nests")
     if not nestsFolder then
         return {}
     end
-
     return nestsFolder:GetChildren()
-
 end
 
 local function FeedAllEggs()
-
-    if not AutoFeedEgg then
-        return
-    end
-
-    local nests =
-        GetNests()
-
-    for _, nest in ipairs(
-        nests
-    ) do
-
-        if not AutoFeedEgg then
-            break
-        end
-
-        if nest
-            and nest.Parent then
-
+    if not AutoFeedEgg then return end
+    local nests = GetNests()
+    for _, nest in ipairs(nests) do
+        if not AutoFeedEgg then break end
+        if nest and nest.Parent then
             pcall(function()
-
-                FeedEggEvent:FireServer(
-                    nest
-                )
-
+                FeedEggEvent:FireServer(nest)
             end)
-
         end
-
     end
-
 end
+
+-- ✅ FIX : Ajout de la fonction doPlanting qui manquait
+local function doPlanting()
+    if not config.autoPlant or not PlantRemote then return end
+    for _, eggZone in ipairs(eggsSelected) do
+        task.spawn(function() pcall(PlantRemote.FireServer, PlantRemote, eggZone) end)
+    end
+end
+
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
     for _ = 1, 15 do
@@ -636,13 +617,13 @@ Tabs.Misc:AddParagraph({ Title = "Hide GUI", Content = "Appuie sur H pour minimi
 -- ============================================================
 local BACKGROUND_PRESETS = {
     ["Aucun"]     = nil,
-    ["Mon fond"]  = "rbxassetid://88045848328323",  -- 🆕 nouvelle image
+    ["Mon fond"]  = "rbxassetid://130707247063445",  -- 🆕 TON NOUVEL ID
     ["Galaxie"]   = "rbxassetid://1316045217",
     ["Neon"]      = "rbxassetid://8575188278",
     ["Vague"]     = "rbxassetid://4507873210",
 }
 
-local DEFAULT_BG = "rbxassetid://88045848328323"
+local DEFAULT_BG = "rbxassetid://130707247063445" -- 🆕 TON NOUVEL ID
 
 local bgState = {
     imageId = nil,
