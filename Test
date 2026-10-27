@@ -1,106 +1,73 @@
--- [[ CRÉATION DE L'INTERFACE DE BASE (SCREENGUI) ]] --
-local player = game.Players.LocalPlayer
-
--- Création de l'écran
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "KeySystemGui"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
-
--- Le fond de la fenêtre
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 400, 0, 250)
-MainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
-
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 10)
-Corner.Parent = MainFrame
-
--- Le titre
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.BackgroundTransparency = 1
-Title.Text = "PROJECT ATOMIC - ACCÈS"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.FredokaOne
-Title.TextSize = 24
-Title.Parent = MainFrame
-
--- Le texte d'instruction
-local Instruction = Instance.new("TextLabel")
-Instruction.Size = UDim2.new(1, 0, 0, 30)
-Instruction.Position = UDim2.new(0, 0, 0, 50)
-Instruction.BackgroundTransparency = 1
-Instruction.Text = "Entre ta clé d'accès ci-dessous :"
-Instruction.TextColor3 = Color3.fromRGB(200, 200, 200)
-Instruction.Font = Enum.Font.Gotham
-Instruction.TextSize = 14
-Instruction.Parent = MainFrame
-
--- La zone de texte (Pour taper la clé)
-local TextBox = Instance.new("TextBox")
-TextBox.Size = UDim2.new(0.8, 0, 0, 40)
-TextBox.Position = UDim2.new(0.1, 0, 0, 90)
-TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextBox.PlaceholderText = "Ex: ATOMIC-1234"
-TextBox.Text = ""
-TextBox.Font = Enum.Font.Gotham
-TextBox.TextSize = 16
-TextBox.Parent = MainFrame
-
-local BoxCorner = Instance.new("UICorner")
-BoxCorner.CornerRadius = UDim.new(0, 5)
-BoxCorner.Parent = TextBox
-
--- Le bouton de validation
-local Button = Instance.new("TextButton")
-Button.Size = UDim2.new(0.8, 0, 0, 40)
-Button.Position = UDim2.new(0.1, 0, 0, 150)
-Button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-Button.Text = "Valider la clé"
-Button.Font = Enum.Font.GothamBold
-Button.TextSize = 16
-Button.Parent = MainFrame
-
-local BtnCorner = Instance.new("UICorner")
-BtnCorner.CornerRadius = UDim.new(0, 5)
-BtnCorner.Parent = Button
-
--- Message d'erreur/succès caché
-local MsgLabel = Instance.new("TextLabel")
-MsgLabel.Size = UDim2.new(1, 0, 0, 30)
-MsgLabel.Position = UDim2.new(0, 0, 0, 200)
-MsgLabel.BackgroundTransparency = 1
-MsgLabel.Text = ""
-MsgLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-MsgLabel.Font = Enum.Font.GothamBold
-MsgLabel.TextSize = 14
-MsgLabel.Parent = MainFrame
-
--- [[ LOGIQUE DU BOUTON ]] --
 Button.MouseButton1Click:Connect(function()
     local key = TextBox.Text
     MsgLabel.TextColor3 = Color3.fromRGB(255, 255, 50)
     MsgLabel.Text = "Vérification en cours..."
 
-    -- ⚠️ POUR TESTER : Si la clé est "TEST", ça marche
-    task.wait(1) -- Fait semblant de charger
+    task.wait(1) 
+    
     if key == "TEST" then
         MsgLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-        MsgLabel.Text = "Clé validée ! Chargement du script..."
-        task.wait(1.5)
+        MsgLabel.Text = "Clé validée ! Chargement..."
+        task.wait(1)
         ScreenGui:Destroy() -- Ferme le menu
         
-        -- C'EST ICI QUE TU METTRAS TON VRAI SCRIPT (Fluent, etc.)
-        print("[ProjectAtomic] Script principal lancé !")
+        -- ✅ ON CHARGE LE SCRIPT DE FREEZE ICI
+        print("[ProjectAtomic] Authentification réussie. Lancement du Freeze Trade...")
+        
+        -- On vérifie si hookmetamethod existe
+        local hookmetamethod = hookmetamethod or (getgenv and getgenv().hookmetamethod) or (syn and syn.hookmetamethod)
+        local getnamecallmethod = getnamecallmethod or (getgenv and getgenv().getnamecallmethod)
+
+        if type(hookmetamethod) == "function" then
+            local Config = { FreezeEnabled = false }
+            
+            local oldNameCall
+            oldNameCall = hookmetamethod(game, "__namecall", function(self, ...)
+                local method = getnamecallmethod()
+                if method == "FireServer" or method == "InvokeServer" then
+                    if typeof(self) == "Instance" and (self:IsA("RemoteEvent") or self:IsA("RemoteFunction")) then
+                        if self:GetFullName():find("TradingUtils") and Config.FreezeEnabled then
+                            if self.Name == "Accept1" or self.Name == "Accept2" then
+                                print("[ProjectAtomic] ⛔ Accept bloqué !")
+                                return
+                            end
+                        end
+                    end
+                end
+                return oldNameCall(self, ...)
+            end)
+            print("[ProjectAtomic] Hook réseau activé avec succès.")
+        else
+            warn("[ProjectAtomic] Attention : Ton exécuteur bloque les hooks réseau.")
+        end
+        
+        -- On lance Fluent (si ton exécuteur le supporte)
+        local successFluent, Fluent = pcall(function()
+            return loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+        end)
+        
+        if successFluent and Fluent then
+             local Window = Fluent:CreateWindow({
+                Title = "Project Atomic",
+                SubTitle = "Freeze Trade",
+                TabWidth = 160,
+                Size = UDim2.fromOffset(580, 460),
+                Acrylic = true,
+                Theme = "Dark",
+            })
+            local Tab = Window:AddTab({ Title = "Main", Icon = "home" })
+            
+            Tab:AddToggle("FreezeTrade", {
+                Title = "Activer le Freeze",
+                Default = false,
+                Callback = function(Value)
+                    Config.FreezeEnabled = Value
+                    print("Freeze: " .. tostring(Value))
+                end,
+            })
+        end
         
     else
-        -- Si la clé est fausse
         MsgLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
         MsgLabel.Text = "Clé invalide. Réessaie."
     end
