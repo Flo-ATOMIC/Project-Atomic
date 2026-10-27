@@ -1,164 +1,150 @@
 -- ============================================================
--- 1. SYSTÈME DE CLÉ AVEC IMAGE DE FOND
+-- SYSTÈME DE CLÉ - BLACK HOLE HUB
 -- ============================================================
 local player = game.Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "KeySystemGui"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+-- 🔗 TON LIEN GOOGLE APPS SCRIPT
+local API_URL = "https://script.google.com/macros/s/AKfycbzKRhr8xLOIysRv2sDbjPwNDfAls8AkWGTa8N7ivjQtae_hYEVI1wBwG3Le_yP9Q4PRLw/exec"
 
--- Fenêtre principale
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 400, 0, 250)
-MainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
+-- 🔗 TON LIEN GITHUB (Le script WindUI qu'on vient de faire)
+local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Black-Hole-Hub"
+
+-- ============================================================
+-- CRÉATION DE L'INTERFACE DE CLÉ
+-- ============================================================
+local KeyGui = Instance.new("ScreenGui")
+KeyGui.Name = "KeySystemGui"
+KeyGui.ResetOnSpawn = false
+KeyGui.Parent = player:WaitForChild("PlayerGui")
+
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.new(0, 400, 0, 220)
+KeyFrame.Position = UDim2.new(0.5, -200, 0.5, -110)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+KeyFrame.BorderSizePixel = 0
+KeyFrame.Parent = KeyGui
 
 local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0, 10)
-Corner.Parent = MainFrame
+Corner.Parent = KeyFrame
 
--- 🎨 IMAGE DE FOND
-local BgImage = Instance.new("ImageLabel")
-BgImage.Size = UDim2.new(1, 0, 1, 0)
-BgImage.Position = UDim2.new(0, 0, 0, 0)
-BgImage.BackgroundTransparency = 1
-BgImage.Image = "rbxassetid://130707247063445" -- Ton image
-BgImage.ScaleType = Enum.ScaleType.Crop
-BgImage.ZIndex = 1
-BgImage.Parent = MainFrame
-
-local BgCorner = Instance.new("UICorner")
-BgCorner.CornerRadius = UDim.new(0, 10)
-BgCorner.Parent = BgImage
-
--- 🎨 VOILE SOMBRE (pour lire le texte sur l'image)
-local Overlay = Instance.new("Frame")
-Overlay.Size = UDim2.new(1, 0, 1, 0)
-Overlay.Position = UDim2.new(0, 0, 0, 0)
-Overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-Overlay.BackgroundTransparency = 0.5 -- 0.5 = à moitié transparent
-Overlay.BorderSizePixel = 0
-Overlay.ZIndex = 2
-Overlay.Parent = MainFrame
-
-local OverlayCorner = Instance.new("UICorner")
-OverlayCorner.CornerRadius = UDim.new(0, 10)
-OverlayCorner.Parent = Overlay
-
--- Titre
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 50)
 Title.BackgroundTransparency = 1
-Title.Text = "PROJECT ATOMIC"
+Title.Text = "BLACK HOLE HUB"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.FredokaOne
 Title.TextSize = 24
-Title.ZIndex = 3
-Title.Parent = MainFrame
+Title.Parent = KeyFrame
 
--- Texte
-local Instruction = Instance.new("TextLabel")
-Instruction.Size = UDim2.new(1, 0, 0, 30)
-Instruction.Position = UDim2.new(0, 0, 0, 50)
-Instruction.BackgroundTransparency = 1
-Instruction.Text = "Entre ta clé d'accès :"
-Instruction.TextColor3 = Color3.fromRGB(200, 200, 200)
-Instruction.Font = Enum.Font.GothamBold
-Instruction.TextSize = 14
-Instruction.ZIndex = 3
-Instruction.Parent = MainFrame
+local Desc = Instance.new("TextLabel")
+Desc.Size = UDim2.new(1, 0, 0, 30)
+Desc.Position = UDim2.new(0, 0, 0, 50)
+Desc.BackgroundTransparency = 1
+Desc.Text = "Entre ta clé d'accès :"
+Desc.TextColor3 = Color3.fromRGB(200, 200, 200)
+Desc.Font = Enum.Font.Gotham
+Desc.TextSize = 14
+Desc.Parent = KeyFrame
 
--- Zone de texte
 local TextBox = Instance.new("TextBox")
 TextBox.Size = UDim2.new(0.8, 0, 0, 40)
 TextBox.Position = UDim2.new(0.1, 0, 0, 90)
-TextBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+TextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 TextBox.PlaceholderText = "Ex: ATOMIC-XXXX"
 TextBox.Text = ""
 TextBox.Font = Enum.Font.Gotham
 TextBox.TextSize = 16
-TextBox.ZIndex = 3
-TextBox.Parent = MainFrame
+TextBox.Parent = KeyFrame
 
 local BoxCorner = Instance.new("UICorner")
 BoxCorner.CornerRadius = UDim.new(0, 5)
 BoxCorner.Parent = TextBox
 
--- Bouton
-local Button = Instance.new("TextButton")
-Button.Size = UDim2.new(0.8, 0, 0, 40)
-Button.Position = UDim2.new(0.1, 0, 0, 150)
-Button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-Button.Text = "Valider la clé"
-Button.Font = Enum.Font.GothamBold
-Button.TextSize = 16
-Button.ZIndex = 3
-Button.Parent = MainFrame
+local Btn = Instance.new("TextButton")
+Btn.Size = UDim2.new(0.8, 0, 0, 40)
+Btn.Position = UDim2.new(0.1, 0, 0, 150)
+Btn.BackgroundColor3 = Color3.fromRGB(150, 50, 255) -- Violet assorti au menu
+Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Btn.Text = "Valider la clé"
+Btn.Font = Enum.Font.GothamBold
+Btn.TextSize = 16
+Btn.Parent = KeyFrame
 
 local BtnCorner = Instance.new("UICorner")
 BtnCorner.CornerRadius = UDim.new(0, 5)
-BtnCorner.Parent = Button
+BtnCorner.Parent = Btn
 
--- Message d'erreur/succès
-local MsgLabel = Instance.new("TextLabel")
-MsgLabel.Size = UDim2.new(1, 0, 0, 30)
-MsgLabel.Position = UDim2.new(0, 0, 0, 200)
-MsgLabel.BackgroundTransparency = 1
-MsgLabel.Text = ""
-MsgLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-MsgLabel.Font = Enum.Font.GothamBold
-MsgLabel.TextSize = 14
-MsgLabel.ZIndex = 3
-MsgLabel.Parent = MainFrame
+local Msg = Instance.new("TextLabel")
+Msg.Size = UDim2.new(1, 0, 0, 30)
+Msg.Position = UDim2.new(0, 0, 0, 190)
+Msg.BackgroundTransparency = 1
+Msg.Text = ""
+Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
+Msg.Font = Enum.Font.GothamBold
+Msg.TextSize = 14
+Msg.Parent = KeyFrame
 
 -- ============================================================
--- 2. CONFIGURATION DE LA CLÉ ET DU LIEN
+-- LOGIQUE DE VÉRIFICATION
 -- ============================================================
-local VALID_KEY = "TA_CLE_ICI" -- 🔑 METS TA NOUVELLE CLÉ ICI
-local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Black-Hole-Hub"
-
-print("=========================================")
-print("[ProjectAtomic] Système de clé chargé !")
-print("[ProjectAtomic] La clé attendue est : " .. VALID_KEY)
-print("=========================================")
-
--- ============================================================
--- 3. LOGIQUE DE VALIDATION ET CHARGEMENT
--- ============================================================
-Button.MouseButton1Click:Connect(function()
+Btn.MouseButton1Click:Connect(function()
     local key = TextBox.Text
-    MsgLabel.TextColor3 = Color3.fromRGB(255, 255, 50)
-    MsgLabel.Text = "Vérification..."
     
-    task.wait(1)
+    if key == "" then
+        Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
+        Msg.Text = "Veuillez entrer une clé."
+        return
+    end
+
+    Msg.TextColor3 = Color3.fromRGB(255, 255, 50)
+    Msg.Text = "Vérification en cours..."
+    Btn.Active = false
+    Btn.Text = "Chargement..."
+
+    -- On prépare l'URL avec la clé et l'UserID
+    local requestUrl = API_URL .. "?key=" .. key .. "&userid=" .. tostring(player.UserId)
     
-    if key == VALID_KEY then
-        MsgLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-        MsgLabel.Text = "Clé validée ! Chargement du script..."
-        task.wait(1)
-        ScreenGui:Destroy() -- On ferme l'écran de clé
-        
-        -- 📥 CHARGEMENT DU SCRIPT DEPUIS GITHUB
-        local success, err = pcall(function()
-            loadstring(game:HttpGet(SCRIPT_URL))()
-        end)
-        
-        if not success then
-            warn("[ProjectAtomic] Erreur de chargement GitHub : " .. tostring(err))
-            game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = "Erreur",
-                Text = "Impossible de charger le script. Vérifie le lien.",
-                Duration = 5
-            })
+    -- On utilise pcall pour éviter que le script crash si l'exécuteur bloque les requêtes HTTP
+    local success, response = pcall(function()
+        return game:HttpGet(requestUrl)
+    end)
+
+    if success then
+        -- On vérifie si la réponse contient "VALID"
+        if string.find(response, "VALID") then
+            Msg.TextColor3 = Color3.fromRGB(0, 255, 0)
+            Msg.Text = "Clé validée ! Chargement du menu..."
+            task.wait(1)
+            KeyGui:Destroy() -- On ferme l'interface de clé
+            
+            -- ✅ ON CHARGE LE MENU WINDUI DEPUIS GITHUB
+            local loadSuccess, loadErr = pcall(function()
+                loadstring(game:HttpGet(SCRIPT_URL))()
+            end)
+            
+            if not loadSuccess then
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Erreur",
+                    Text = "Impossible de charger le menu : " .. tostring(loadErr),
+                    Duration = 5
+                })
+            end
+        else
+            -- Si la réponse est INVALID ou autre chose
+            Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
+            Msg.Text = "Clé invalide ou déjà liée à un autre compte."
+            Btn.Active = true
+            Btn.Text = "Valider la clé"
         end
-        
     else
-        MsgLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-        MsgLabel.Text = "Clé invalide. Réessaie."
+        -- Si la requête HTTP a échoué (bloquée par l'exécuteur ou pas de connexion)
+        Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
+        Msg.Text = "Erreur réseau. L'exécuteur bloque peut-être l'accès."
+        Btn.Active = true
+        Btn.Text = "Valider la clé"
+        warn("[KeySystem] Erreur HTTP : " .. tostring(response))
     end
 end)
