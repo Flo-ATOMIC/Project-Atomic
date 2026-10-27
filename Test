@@ -1,73 +1,878 @@
+-- ============================================================
+-- 1. SYSTÈME DE CLÉ (INTERFACE ROBLOX DE BASE)
+-- ============================================================
+local player = game.Players.LocalPlayer
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "KeySystemGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 400, 0, 250)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 10)
+Corner.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundTransparency = 1
+Title.Text = "PROJECT ATOMIC"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.FredokaOne
+Title.TextSize = 24
+Title.Parent = MainFrame
+
+local Instruction = Instance.new("TextLabel")
+Instruction.Size = UDim2.new(1, 0, 0, 30)
+Instruction.Position = UDim2.new(0, 0, 0, 50)
+Instruction.BackgroundTransparency = 1
+Instruction.Text = "Entre ta clé d'accès :"
+Instruction.TextColor3 = Color3.fromRGB(200, 200, 200)
+Instruction.Font = Enum.Font.Gotham
+Instruction.TextSize = 14
+Instruction.Parent = MainFrame
+
+local TextBox = Instance.new("TextBox")
+TextBox.Size = UDim2.new(0.8, 0, 0, 40)
+TextBox.Position = UDim2.new(0.1, 0, 0, 90)
+TextBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.PlaceholderText = "Ex: ATOMIC-XXXX"
+TextBox.Text = ""
+TextBox.Font = Enum.Font.Gotham
+TextBox.TextSize = 16
+TextBox.Parent = MainFrame
+
+local BoxCorner = Instance.new("UICorner")
+BoxCorner.CornerRadius = UDim.new(0, 5)
+BoxCorner.Parent = TextBox
+
+local Button = Instance.new("TextButton")
+Button.Size = UDim2.new(0.8, 0, 0, 40)
+Button.Position = UDim2.new(0.1, 0, 0, 150)
+Button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.Text = "Valider la clé"
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 16
+Button.Parent = MainFrame
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 5)
+BtnCorner.Parent = Button
+
+local MsgLabel = Instance.new("TextLabel")
+MsgLabel.Size = UDim2.new(1, 0, 0, 30)
+MsgLabel.Position = UDim2.new(0, 0, 0, 200)
+MsgLabel.BackgroundTransparency = 1
+MsgLabel.Text = ""
+MsgLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+MsgLabel.Font = Enum.Font.GothamBold
+MsgLabel.TextSize = 14
+MsgLabel.Parent = MainFrame
+
+-- ============================================================
+-- 2. LOGIQUE DE VALIDATION ET CHARGEMENT
+-- ============================================================
+local VALID_KEY = "ATOMIC-2024" -- 🔑 TA CLÉ ICI
+
 Button.MouseButton1Click:Connect(function()
     local key = TextBox.Text
     MsgLabel.TextColor3 = Color3.fromRGB(255, 255, 50)
-    MsgLabel.Text = "Vérification en cours..."
-
-    task.wait(1) 
+    MsgLabel.Text = "Vérification..."
     
-    if key == "TEST" then
+    task.wait(1)
+    
+    if key == VALID_KEY then
         MsgLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-        MsgLabel.Text = "Clé validée ! Chargement..."
+        MsgLabel.Text = "Clé validée ! Chargement du menu..."
         task.wait(1)
-        ScreenGui:Destroy() -- Ferme le menu
+        ScreenGui:Destroy() -- On ferme l'écran de clé
         
-        -- ✅ ON CHARGE LE SCRIPT DE FREEZE ICI
-        print("[ProjectAtomic] Authentification réussie. Lancement du Freeze Trade...")
-        
-        -- On vérifie si hookmetamethod existe
-        local hookmetamethod = hookmetamethod or (getgenv and getgenv().hookmetamethod) or (syn and syn.hookmetamethod)
-        local getnamecallmethod = getnamecallmethod or (getgenv and getgenv().getnamecallmethod)
+        -- ============================================================
+        -- 3. TON SCRIPT PROJECT-ATOMIC (PET SWARM SIMULATOR)
+        -- ============================================================
+        local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+        local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+        local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
-        if type(hookmetamethod) == "function" then
-            local Config = { FreezeEnabled = false }
-            
-            local oldNameCall
-            oldNameCall = hookmetamethod(game, "__namecall", function(self, ...)
-                local method = getnamecallmethod()
-                if method == "FireServer" or method == "InvokeServer" then
-                    if typeof(self) == "Instance" and (self:IsA("RemoteEvent") or self:IsA("RemoteFunction")) then
-                        if self:GetFullName():find("TradingUtils") and Config.FreezeEnabled then
-                            if self.Name == "Accept1" or self.Name == "Accept2" then
-                                print("[ProjectAtomic] ⛔ Accept bloqué !")
-                                return
+        local Players = game:GetService("Players")
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local Workspace = game:GetService("Workspace")
+        local UserInputService = game:GetService("UserInputService")
+        local LocalPlayer = Players.LocalPlayer
+
+        -- Remotes
+        local Remotes = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes")
+        local Functions = Remotes and Remotes:FindFirstChild("Functions")
+        local Events = Remotes and Remotes:FindFirstChild("Events")
+        local CombatRemote = Functions and Functions:FindFirstChild("CombatRF")
+        local CollectionRemote = Functions and Functions:FindFirstChild("CollectionRF")
+        local HatchRemote = Events and Events:FindFirstChild("HatchEggEvent")
+        local PlantRemote = Events and Events:FindFirstChild("PlantEggEvent")
+        local FeedRemote = Events and Events:FindFirstChild("FeedEggEvent")
+        local SacrificeRemote = Functions and Functions:FindFirstChild("SacrificeFunction")
+        local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
+
+        -- DONNÉES ZONES
+        local zoneCache = {}
+        local zoneList = {
+            "SummerEvent1", "WinterEvent1", "EleEgg1", "6", "4", "15", "10", "27",
+            "30", "11", "34", "12.1", "1", "3", "7", "8", "9", "12", "13", "14",
+            "Boss1", "Boss2", "Boss4",
+            "SummerEventZone", "WinterEventZone", "Zone12.1", "ElementEventZone1",
+            "Zone2", "Zone5", "Zone9", "Zone10", "Zone12",
+            "Zone2B1", "Zone5B1", "Zone8B1", "Zone10B1", "Zone12B1", "Zone12B3", "Zone12B2",
+            "SummerEventZoneB1", "WinterEventZoneB1", "ElementEventZoneB1"
+        }
+        for _, z in ipairs(zoneList) do
+            local ok, res = pcall(function() return Workspace.Zones:FindFirstChild(z) end)
+            if ok and res then zoneCache[z] = res end
+        end
+
+        -- PETS & NIDS
+        local petCache, nestCache = {}, nil
+        local lastPetUpdate, lastNestUpdate = 0, 0
+        local PET_UPDATE_INTERVAL = 0.5
+        local NEST_UPDATE_INTERVAL = 30
+
+        local function updatePets()
+            local now = os.clock()
+            if now - lastPetUpdate > PET_UPDATE_INTERVAL then
+                if LocalPlayer.Character then
+                    local petsObj = LocalPlayer.Character:FindFirstChild("Pets")
+                    if petsObj then
+                        local pets = petsObj:GetChildren()
+                        for i, v in ipairs(pets) do petCache[i] = v end
+                        for i = #pets + 1, #petCache do petCache[i] = nil end
+                    else
+                        for i = 1, #petCache do petCache[i] = nil end
+                    end
+                else
+                    for i = 1, #petCache do petCache[i] = nil end
+                end
+                lastPetUpdate = now
+            end
+            return petCache
+        end
+
+        local function updateNests()
+            local now = os.clock()
+            if now - lastNestUpdate > NEST_UPDATE_INTERVAL then
+                nestCache = Workspace:FindFirstChild("Nests")
+                lastNestUpdate = now
+            end
+            return nestCache
+        end
+
+        -- BOSS / ENNEMIS / FOOD
+        local bossZoneMap = {
+            Naga = "Zone2B1", ["Lava Monster"] = "Zone5B1", ["Ghost Pirate"] = "Zone8B1", ["Tiki Monster"] = "Zone10B1",
+            ["The Frozen Ancient"] = "Zone12B1", ["The Big 100M"] = "Zone12B3",
+            ["The Ethereal Everia"] = "Zone12B2", ["Hornet Boss"] = "SummerEventZoneB1",
+            ["The Ice Serpent"] = "WinterEventZoneB1", ["Great Sphinx"] = "ElementEventZoneB1",
+        }
+        local bossList = {
+            "Naga", "Lava Monster", "Ghost Pirate", "Tiki Monster", "The Frozen Ancient", "The Big 100M",
+            "The Ethereal Everia", "Hornet Boss", "The Ice Serpent", "Great Sphinx"
+        }
+        local bossEnabled = {}
+        for _, name in ipairs(bossList) do bossEnabled[name] = true end
+
+        local enemyZones = {
+            { name = "Summer", zone = "SummerEventZone", attackAll = true },
+            { name = "Winter", zone = "WinterEventZone", attackAll = true },
+            { name = "Sphinx (Evil Eagle)", zone = "ElementEventZone1", enemy = "Evil Eagle" },
+            { name = "Cursed Mummy", zone = "Zone2", enemy = "Cursed Mummy" },
+            { name = "Crazy Unicorn", zone = "Zone5", enemy = "Crazy Unicorn" },
+            { name = "Dark Planet", zone = "Zone9", enemy = "Dark Planet" },
+            { name = "Terror Tree", zone = "Zone10", enemy = "Terror Tree" },
+            { name = "Draco's Guard", zone = "Zone12", enemy = "Draco's Guard" },
+            { name = "Possessed Slime", zone = "Zone12.1", enemy = "Possessed Slime" },
+        }
+        local enemyEnabled = {}
+        for i = 1, #enemyZones do enemyEnabled[i] = false end
+
+        local foodZones = {
+            { name = "Crystal Food", zone = "Zone12.1", enabled = false },
+            { name = "Draco Food", zone = "Zone12", enabled = false },
+        }
+
+        -- CONFIG
+        local config = {
+            farmBosses = false, farmEnemies = false, farmFood = false,
+            autoPlant = false, autoHatch = false, autoNests = false,
+            doubleJump = false, walkSpeed = 16,
+            bossAttackDelay = 0.5, enemyDelay = 0.1, foodDelay = 0.1, eggDelay = 0.0001,
+        }
+
+        local activeBosses, eggsSelected = {}, {}
+        local jumpConnection, jumpCount = nil, 0
+
+        -- DATA ŒUFS
+        local eggData = {
+            { name = "Summer Egg", zone = "SummerEvent1" },
+            { name = "Winter Egg", zone = "WinterEvent1" },
+            { name = "Sphinx Egg", zone = "EleEgg1" },
+            { name = "Desert Egg", zone = "6" },
+            { name = "Swamp Egg", zone = "4" },
+            { name = "Sky Egg", zone = "15" },
+            { name = "Cosmos Egg", zone = "10" },
+            { name = "Void Egg", zone = "27" },
+            { name = "Tiki Egg", zone = "30" },
+            { name = "Tiki Island Egg", zone = "11" },
+            { name = "Draco Egg", zone = "34" },
+            { name = "Crystal Egg", zone = "12.1" },
+            { name = "Octopus Egg", zone = "29" },
+            { name = "Forest Egg", zone = "1" },
+            { name = "Frozen Egg", zone = "3" },
+            { name = "Magma Egg", zone = "7" },
+            { name = "Atlantis Egg", zone = "8" },
+            { name = "Aqua Egg", zone = "9" },
+            { name = "Egg Of Oblivion", zone = "12" },
+            { name = "Mythical Egg", zone = "13" },
+            { name = "Legendary Egg", zone = "14" },
+        }
+
+        -- COMBAT / COLLECTE
+        local function safeAttackEnemy(enemy, pet)
+            if CombatRemote then pcall(CombatRemote.InvokeServer, CombatRemote, "AttackEnemy", enemy, pet) end
+        end
+        local function safeCollectFood(food, pet)
+            if CollectionRemote then pcall(CollectionRemote.InvokeServer, CollectionRemote, "CollectFood", food, pet) end
+        end
+
+        local function attackEnemiesInZone(zoneName, specificEnemy, attackAll)
+            local zone = zoneCache[zoneName]
+            if not zone then return end
+            local enemiesObj = zone:FindFirstChild("Enemies")
+            if not enemiesObj then return end
+            local enemies = attackAll and enemiesObj:GetChildren()
+                or (function() local e = enemiesObj:FindFirstChild(specificEnemy); return e and {e} or {} end)()
+            if #enemies == 0 then return end
+            local pets = updatePets()
+            if #pets == 0 then return end
+            if attackAll then
+                for i = 1, math.min(#pets, #enemies) do safeAttackEnemy(enemies[i], pets[i]) end
+            else
+                for _, pet in ipairs(pets) do safeAttackEnemy(enemies[1], pet) end
+            end
+        end
+
+        local function attackBosses()
+            if not config.farmBosses or #activeBosses == 0 then return end
+            local pets = updatePets()
+            if #pets == 0 then return end
+            for _, boss in ipairs(activeBosses) do
+                if boss and boss.Parent then
+                    safeAttackEnemy(boss, pets[1])
+                    task.wait(config.bossAttackDelay)
+                end
+            end
+        end
+
+        local function collectFood()
+            if not config.farmFood then return end
+            for _, fz in ipairs(foodZones) do
+                if fz.enabled then
+                    local zone = zoneCache[fz.zone]
+                    if zone then
+                        local foodSpawns = zone:FindFirstChild("FoodSpawns")
+                        if foodSpawns then
+                            local foods = foodSpawns:GetChildren()
+                            if #foods > 0 then
+                                local pets = updatePets()
+                                if #pets > 0 then
+                                    for fi, food in ipairs(foods) do
+                                        local pet = pets[((fi-1) % #pets) + 1]
+                                        safeCollectFood(food, pet)
+                                    end
+                                end
                             end
                         end
                     end
                 end
-                return oldNameCall(self, ...)
-            end)
-            print("[ProjectAtomic] Hook réseau activé avec succès.")
-        else
-            warn("[ProjectAtomic] Attention : Ton exécuteur bloque les hooks réseau.")
+            end
         end
-        
-        -- On lance Fluent (si ton exécuteur le supporte)
-        local successFluent, Fluent = pcall(function()
-            return loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
+        -- FIX : AJOUT DE LA FONCTION MANQUANTE DO PLANTING
+        local function doPlanting()
+            if not config.autoPlant or not PlantRemote then return end
+            for _, eggZone in ipairs(eggsSelected) do
+                task.spawn(function() pcall(PlantRemote.FireServer, PlantRemote, eggZone) end)
+            end
+        end
+
+        local function doHatching()
+            if not config.autoHatch or not HatchRemote then return end
+            for _ = 1, 15 do
+                task.spawn(function() pcall(HatchRemote.FireServer, HatchRemote) end)
+            end
+        end
+
+        local function doNests()
+            if not config.autoNests or not FeedRemote then return end
+            local nests = updateNests()
+            if nests then
+                for _, nest in ipairs(nests:GetChildren()) do
+                    for _ = 1, 7 do
+                        task.spawn(function() pcall(FeedRemote.FireServer, FeedRemote, nest) end)
+                    end
+                end
+            end
+        end
+
+        -- SCAN BOSS
+        local function scanBosses()
+            if not config.farmBosses then activeBosses = {}; return end
+            local newList = {}
+            for _, name in ipairs(bossList) do
+                if bossEnabled[name] then
+                    local zone = Workspace.Zones:FindFirstChild(bossZoneMap[name])
+                    if zone then
+                        local enemies = zone:FindFirstChild("Enemies")
+                        if enemies then
+                            local enemy = enemies:FindFirstChild(name)
+                            if enemy and enemy.Parent then table.insert(newList, enemy) end
+                        end
+                    end
+                end
+            end
+            activeBosses = newList
+        end
+
+        -- SACRIFICE / OPTIM
+        local function sacrificePet(petName)
+            if SacrificeRemote then
+                local ok = pcall(function() SacrificeRemote:InvokeServer("SacrificeWell", petName) end)
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Sacrifice",
+                    Text = ok and (petName .. " sacrifié !") or ("Échec : " .. petName),
+                    Duration = 1.5
+                })
+            end
+        end
+
+        local function removeHatchAnimation()
+            local ev = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes")
+                and ReplicatedStorage.Remotes:FindFirstChild("Events")
+                and ReplicatedStorage.Remotes.Events:FindFirstChild("HatchAnimationEvent")
+            if ev then
+                pcall(ev.Destroy, ev)
+                game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Optim", Text = "Anim hatch supprimée.", Duration = 2 })
+            end
+        end
+
+        local function removeCoinsAnimation()
+            local events = ReplicatedStorage and ReplicatedStorage:FindFirstChild("Remotes")
+                and ReplicatedStorage.Remotes:FindFirstChild("Events")
+            if not events then return end
+            local du = events:FindFirstChild("DataUpdater")
+            local dl = events:FindFirstChild("DataLoaded")
+            if du then pcall(du.Destroy, du) end
+            if dl then pcall(dl.Destroy, dl) end
+            game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Optim", Text = "Anim coins supprimées.", Duration = 2 })
+        end
+
+        -- BOUCLE PRINCIPALE
+        local active, mainThread, tasks = false, nil, {}
+
+        local function addTask(name, func, interval, runNow)
+            table.insert(tasks, { name = name, func = func, interval = interval, nextTime = runNow and 0 or os.clock() + interval })
+        end
+
+        local function mainLoop()
+            while active do
+                local now = os.clock()
+                for _, t in ipairs(tasks) do
+                    if now >= t.nextTime then
+                        local s, e = pcall(t.func)
+                        if not s then warn("Task [" .. t.name .. "]:", e) end
+                        t.nextTime = now + t.interval
+                    end
+                end
+                task.wait(0.01)
+            end
+        end
+
+        local function start()
+            if active then return end
+            active = true
+            tasks = {}
+
+            if ZonesRF then
+                for _, z in ipairs({"Zone12.1","SummerEventZone","WinterEventZone","ElementEventZone1","Zone2","Zone5","Zone9","Zone10","Zone12"}) do
+                    pcall(ZonesRF.InvokeServer, ZonesRF, "RequestZoneMap", z)
+                end
+            end
+
+            removeHatchAnimation()
+            removeCoinsAnimation()
+
+            local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = config.walkSpeed
+                if config.doubleJump then
+                    humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                    if not jumpConnection then
+                        jumpConnection = humanoid.Jumping:Connect(function()
+                            jumpCount = jumpCount + 1
+                            if jumpCount >= 2 then humanoid.Jump = true; jumpCount = 0 end
+                        end)
+                    end
+                end
+            end
+
+            scanBosses()
+            addTask("bossScan", scanBosses, 5, true)
+            addTask("bossAttack", function() if config.farmBosses then attackBosses() end end, 0, false)
+            addTask("enemyAttack", function()
+                if config.farmEnemies then
+                    for idx, info in ipairs(enemyZones) do
+                        if enemyEnabled[idx] then
+                            if info.attackAll then attackEnemiesInZone(info.zone, nil, true)
+                            else attackEnemiesInZone(info.zone, info.enemy, false) end
+                        end
+                    end
+                end
+            end, config.enemyDelay, false)
+            addTask("foodCollect", function() if config.farmFood then collectFood() end end, config.foodDelay, false)
+            addTask("plant", doPlanting, config.eggDelay, false)
+            addTask("hatch", doHatching, config.eggDelay, false)
+            addTask("nests", doNests, config.eggDelay, false)
+
+            mainThread = task.spawn(mainLoop)
+            Fluent:Notify({ Title = "Project-Atomic", Content = "Farm Starting!", Duration = 3 })
+        end
+
+        local function stop()
+            active = false
+            if mainThread then task.cancel(mainThread); mainThread = nil end
+            activeBosses = {}
+            local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = 16
+                if config.doubleJump and jumpConnection then
+                    jumpConnection:Disconnect(); jumpConnection = nil
+                end
+            end
+            Fluent:Notify({ Title = "Project-Atomic", Content = "Farm Ended.", Duration = 2 })
+        end
+
+        -- FENÊTRE FLUENT
+        local Window = Fluent:CreateWindow({
+            Title = "Project-Atomic",
+            SubTitle = "Pet Swarm Sim - Complete Edition",
+            TabWidth = 160,
+            Size = UDim2.fromOffset(580, 460),
+            Acrylic = false,
+            Theme = "Dark",
+            MinimizeKey = Enum.KeyCode.H
+        })
+
+        local Tabs = {
+            Main      = Window:AddTab({ Title = "Main",      Icon = "home" }),
+            Speed     = Window:AddTab({ Title = "Speed",     Icon = "timer" }),
+            Enemies   = Window:AddTab({ Title = "Enemies",   Icon = "swords" }),
+            Food      = Window:AddTab({ Title = "Food",      Icon = "apple" }),
+            Bosses    = Window:AddTab({ Title = "Bosses",    Icon = "skull" }),
+            Eggs      = Window:AddTab({ Title = "Eggs",      Icon = "egg" }),
+            Sacrifice = Window:AddTab({ Title = "Sacrifice", Icon = "flame" }),
+            Misc      = Window:AddTab({ Title = "Misc",      Icon = "settings" }),
+            Settings  = Window:AddTab({ Title = "Settings",  Icon = "cog" }),
+        }
+
+        local Options = Fluent.Options
+
+        -- TAB MAIN
+        Tabs.Main:AddSection("Control")
+        Tabs.Main:AddButton({ Title = "Start Farming", Description = "Launch the farm", Callback = start })
+        Tabs.Main:AddButton({ Title = "Stop Farming",  Description = "Stop the farm",  Callback = stop  })
+
+        Tabs.Main:AddSection("Status")
+        local statusParagraph = Tabs.Main:AddParagraph({
+            Title = "Status: Stopped",
+            Content = "Bosses: OFF | Enemies: OFF | Food: OFF | Eggs: OFF"
+        })
+
+        Tabs.Main:AddSection("Credits")
+        Tabs.Main:AddParagraph({
+            Title = "Credits",
+            Content = "Developed by Flo_RPMX and Player\nyt: Yonix76\ndiscord: Flo_RPMX"
+        })
+
+        task.spawn(function()
+            while true do
+                task.wait(0.5)
+                if Fluent.Unloaded then break end
+                if active then
+                    local anyE, anyF = false, false
+                    for _, e in ipairs(enemyEnabled) do if e then anyE = true; break end end
+                    for _, fz in ipairs(foodZones) do if fz.enabled then anyF = true; break end end
+                    statusParagraph:SetTitle("Status: Active")
+                    statusParagraph:SetDesc(string.format(
+                        "Bosses: %s | Enemies: %s | Food: %s | Eggs: %s",
+                        config.farmBosses and "ON" or "OFF",
+                        anyE and "ON" or "OFF",
+                        anyF and "ON" or "OFF",
+                        (config.autoPlant or config.autoHatch or config.autoNests) and "ON" or "OFF"
+                    ))
+                else
+                    statusParagraph:SetTitle("Status: Stopped")
+                    statusParagraph:SetDesc("Bosses: OFF | Enemies: OFF | Food: OFF | Eggs: OFF")
+                end
+            end
         end)
-        
-        if successFluent and Fluent then
-             local Window = Fluent:CreateWindow({
-                Title = "Project Atomic",
-                SubTitle = "Freeze Trade",
-                TabWidth = 160,
-                Size = UDim2.fromOffset(580, 460),
-                Acrylic = true,
-                Theme = "Dark",
-            })
-            local Tab = Window:AddTab({ Title = "Main", Icon = "home" })
-            
-            Tab:AddToggle("FreezeTrade", {
-                Title = "Activer le Freeze",
-                Default = false,
-                Callback = function(Value)
-                    Config.FreezeEnabled = Value
-                    print("Freeze: " .. tostring(Value))
-                end,
+
+        -- TAB SPEED
+        Tabs.Speed:AddSection("Delays")
+        Tabs.Speed:AddSlider("bossAttackDelay", { Title = "Boss Attack Delay", Default = config.bossAttackDelay, Min = 0.1, Max = 1, Rounding = 1, Callback = function(v) config.bossAttackDelay = v end })
+        Tabs.Speed:AddSlider("enemyDelay", { Title = "Enemy Cycle Delay", Default = config.enemyDelay, Min = 0.05, Max = 1, Rounding = 2, Callback = function(v) config.enemyDelay = v end })
+        Tabs.Speed:AddSlider("foodDelay",  { Title = "Food Cycle Delay",  Default = config.foodDelay,  Min = 0.05, Max = 3, Rounding = 2, Callback = function(v) config.foodDelay = v end })
+        Tabs.Speed:AddSlider("eggDelay",   { Title = "Eggs Cycle Delay",  Default = config.eggDelay,   Min = 0.0001, Max = 0.5, Rounding = 4, Callback = function(v) config.eggDelay = v end })
+
+        -- TAB ENEMIES
+        Tabs.Enemies:AddSection("Enemy Farming")
+        Tabs.Enemies:AddToggle("farmEnemies", { Title = "Enable Enemies", Default = config.farmEnemies, Callback = function(v) config.farmEnemies = v end })
+        Tabs.Enemies:AddSection("Enemy List")
+        for i, z in ipairs(enemyZones) do
+            Tabs.Enemies:AddToggle("enemy_" .. i, { Title = z.name, Default = enemyEnabled[i], Callback = function(v) enemyEnabled[i] = v end })
+        end
+
+        -- TAB FOOD
+        Tabs.Food:AddSection("Food Zones")
+        Tabs.Food:AddToggle("farmFood", { Title = "Enable Food", Default = config.farmFood, Callback = function(v) config.farmFood = v end })
+        for i, fz in ipairs(foodZones) do
+            Tabs.Food:AddToggle("food_" .. i, { Title = fz.name, Default = fz.enabled, Callback = function(v) fz.enabled = v end })
+        end
+
+        -- TAB BOSSES
+        Tabs.Bosses:AddSection("Boss Control")
+        Tabs.Bosses:AddToggle("farmBosses", { Title = "Enable Boss Farming", Default = config.farmBosses, Callback = function(v) config.farmBosses = v end })
+        Tabs.Bosses:AddSection("Boss List")
+        for _, name in ipairs(bossList) do
+            Tabs.Bosses:AddToggle("boss_" .. name, { Title = name, Default = bossEnabled[name], Callback = function(v) bossEnabled[name] = v end })
+        end
+        Tabs.Bosses:AddToggle("enableAllBosses", {
+            Title = "Enable All Bosses", Default = true,
+            Callback = function(v)
+                for _, name in ipairs(bossList) do
+                    local id = "boss_" .. name
+                    if Options[id] then Options[id]:SetValue(v) end
+                end
+            end
+        })
+
+        -- TAB EGGS
+        Tabs.Eggs:AddSection("Eggs Control")
+        Tabs.Eggs:AddToggle("autoPlant", { Title = "Auto Plant", Default = config.autoPlant, Callback = function(v) config.autoPlant = v end })
+        Tabs.Eggs:AddToggle("autoHatch", { Title = "Auto Hatch", Default = config.autoHatch, Callback = function(v) config.autoHatch = v end })
+        Tabs.Eggs:AddToggle("autoNests", { Title = "Auto Nests", Default = config.autoNests, Callback = function(v) config.autoNests = v end })
+        Tabs.Eggs:AddButton({ Title = "Remove Hatch Animation", Callback = removeHatchAnimation })
+        Tabs.Eggs:AddButton({ Title = "Remove Coins Animation", Callback = removeCoinsAnimation })
+        Tabs.Eggs:AddSection("Select Eggs")
+        for _, egg in ipairs(eggData) do
+            Tabs.Eggs:AddToggle("egg_" .. egg.zone, {
+                Title = egg.name, Default = false,
+                Callback = function(v)
+                    if v then
+                        if not table.find(eggsSelected, egg.zone) then table.insert(eggsSelected, egg.zone) end
+                    else
+                        local idx = table.find(eggsSelected, egg.zone)
+                        if idx then table.remove(eggsSelected, idx) end
+                    end
+                end
             })
         end
+
+        -- TAB SACRIFICE
+        Tabs.Sacrifice:AddSection("Summer Event")
+        Tabs.Sacrifice:AddButton({ Title = "Queen Bee", Callback = function() sacrificePet("Queen Bee") end })
+        Tabs.Sacrifice:AddButton({ Title = "King Bee",  Callback = function() sacrificePet("King Bee") end })
+        Tabs.Sacrifice:AddSection("Winter Event")
+        Tabs.Sacrifice:AddButton({ Title = "Frozen Werewolf", Callback = function() sacrificePet("Frozen Werewolf") end })
+        Tabs.Sacrifice:AddButton({ Title = "Walrus",          Callback = function() sacrificePet("Walrus") end })
+        Tabs.Sacrifice:AddSection("Sphinx Event")
+        Tabs.Sacrifice:AddButton({ Title = "Fennec Fox",    Callback = function() sacrificePet("Fennec Fox") end })
+        Tabs.Sacrifice:AddButton({ Title = "Mystic Camel", Callback = function() sacrificePet("Mystic Camel") end })
+        Tabs.Sacrifice:AddSection("Sacrifice Area")
+        for _, pet in ipairs({"Pyro Shroom","King Cobra","Royal Unicorn","Golden Octopus","Sea Dragon","Nebula Dragon","Void"}) do
+            Tabs.Sacrifice:AddButton({ Title = pet, Callback = function() sacrificePet(pet) end })
+        end
+        Tabs.Sacrifice:AddSection("End Tower")
+        Tabs.Sacrifice:AddButton({ Title = "Ethereal End Dragon", Callback = function() sacrificePet("Ethereal End Dragon") end })
+        Tabs.Sacrifice:AddSection("Crystal Island")
+        Tabs.Sacrifice:AddButton({ Title = "Orb", Callback = function() sacrificePet("Orb") end })
+
+        -- TAB MISC
+        Tabs.Misc:AddSection("Movement")
+        Tabs.Misc:AddToggle("doubleJump", {
+            Title = "Infinite Double Jump", Default = config.doubleJump,
+            Callback = function(v)
+                config.doubleJump = v
+                local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if not h then return end
+                if v then
+                    h:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                    jumpCount = 0
+                    if not jumpConnection then
+                        jumpConnection = h.Jumping:Connect(function()
+                            jumpCount = jumpCount + 1
+                            if jumpCount >= 2 then h.Jump = true; jumpCount = 0 end
+                        end)
+                    end
+                else
+                    if jumpConnection then jumpConnection:Disconnect(); jumpConnection = nil end
+                    jumpCount = 0
+                end
+            end
+        })
+        Tabs.Misc:AddSlider("walkSpeed", {
+            Title = "Walk Speed", Default = config.walkSpeed, Min = 16, Max = 100, Rounding = 0,
+            Callback = function(v)
+                config.walkSpeed = v
+                local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if h then h.WalkSpeed = v end
+            end
+        })
+        Tabs.Misc:AddSection("Hotkey")
+        Tabs.Misc:AddParagraph({ Title = "Hide GUI", Content = "Appuie sur H pour minimiser / restaurer le menu." })
+
+        -- FOND PERSONNALISÉ
+        local BACKGROUND_PRESETS = {
+            ["Aucun"]     = nil,
+            ["Mon fond"]  = "rbxassetid://88045848328323",
+            ["Galaxie"]   = "rbxassetid://1316045217",
+            ["Neon"]      = "rbxassetid://8575188278",
+            ["Vague"]     = "rbxassetid://4507873210",
+        }
+
+        local DEFAULT_BG = "rbxassetid://88045848328323"
+
+        local bgState = {
+            imageId = nil,
+            imageTransparency = 0.2,
+            darken = 0.4,
+        }
+
+        local function findWindowFrame()
+            local pg = LocalPlayer:FindFirstChild("PlayerGui")
+            if not pg then return nil end
+            local ok, main = pcall(function() return Window and Window.Main end)
+            if ok and typeof(main) == "Instance" and main:IsDescendantOf(pg) then
+                return main
+            end
+            for _, gui in ipairs(pg:GetChildren()) do
+                if gui:IsA("ScreenGui") and gui.Name ~= "RobloxGui" then
+                    local title = gui:FindFirstChild("Project-Atomic", true)
+                    if title then
+                        local f = title
+                        local topFrame = nil
+                        while f and f ~= gui do
+                            if f:IsA("Frame") then topFrame = f end
+                            f = f.Parent
+                        end
+                        if topFrame then return topFrame end
+                    end
+                end
+            end
+            return nil
+        end
+
+        local function clearBackground()
+            local parent = findWindowFrame()
+            if not parent then return end
+            for _, n in ipairs({"CustomBG", "CustomBGOverlay"}) do
+                local old = parent:FindFirstChild(n)
+                if old then old:Destroy() end
+            end
+            parent.BackgroundTransparency = 0
+            bgState.imageId = nil
+        end
+
+        local function applyBackground(imageId)
+            local parent = findWindowFrame()
+            if not parent then return end
+            
+            for _, n in ipairs({"CustomBG", "CustomBGOverlay"}) do
+                local old = parent:FindFirstChild(n)
+                if old then old:Destroy() end
+            end
+
+            if not imageId or imageId == "" then
+                parent.BackgroundTransparency = 0
+                bgState.imageId = nil
+                return
+            end
+
+            bgState.imageId = imageId
+            parent.BackgroundTransparency = 1
+
+            local parentCorner = parent:FindFirstChildOfClass("UICorner")
+            local radius = parentCorner and parentCorner.CornerRadius or UDim.new(0, 8)
+
+            local bg = Instance.new("ImageLabel")
+            bg.Name = "CustomBG"
+            bg.Size = UDim2.fromScale(1, 1)
+            bg.Position = UDim2.fromScale(0, 0)
+            bg.BackgroundTransparency = 1
+            bg.BorderSizePixel = 0
+            bg.Image = imageId
+            bg.ImageTransparency = bgState.imageTransparency
+            bg.ScaleType = Enum.ScaleType.Crop
+            bg.ZIndex = -1
+            bg.Parent = parent
+
+            local bgCorner = Instance.new("UICorner")
+            bgCorner.CornerRadius = radius
+            bgCorner.Parent = bg
+
+            local ov = Instance.new("Frame")
+            ov.Name = "CustomBGOverlay"
+            ov.Size = UDim2.fromScale(1, 1)
+            ov.Position = UDim2.fromScale(0, 0)
+            ov.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            ov.BackgroundTransparency = bgState.darken
+            ov.BorderSizePixel = 0
+            ov.ZIndex = 0
+            ov.Parent = parent
+
+            local ovCorner = Instance.new("UICorner")
+            ovCorner.CornerRadius = radius
+            ovCorner.Parent = ov
+        end
+
+        local function testImage(imageId)
+            local pg = LocalPlayer:WaitForChild("PlayerGui")
+            local old = pg:FindFirstChild("_AtomicBGTest")
+            if old then old:Destroy() end
+            local test = Instance.new("ScreenGui")
+            test.Name = "_AtomicBGTest"
+            test.DisplayOrder = 999
+            test.IgnoreGuiInset = true
+            test.Parent = pg
+            local img = Instance.new("ImageLabel")
+            img.Size = UDim2.fromScale(1, 1)
+            img.BackgroundTransparency = 1
+            img.Image = imageId
+            img.ScaleType = Enum.ScaleType.Crop
+            img.Parent = test
+            Fluent:Notify({ Title = "Test Image", Content = "Affichage 3s de l'ID...", Duration = 3 })
+            task.delay(3, function()
+                if test then test:Destroy() end
+            end)
+        end
+
+        Tabs.Settings:AddSection("🎨 Fond personnalisé")
+        local presetList = {}
+        for k in pairs(BACKGROUND_PRESETS) do table.insert(presetList, k) end
+        table.sort(presetList)
+
+        Tabs.Settings:AddDropdown("bgPreset", {
+            Title = "Fond prédéfini",
+            Values = presetList,
+            Default = "Mon fond",
+            Multi = false,
+            Callback = function(value)
+                local id = BACKGROUND_PRESETS[value]
+                if id then
+                    applyBackground(id)
+                    if Options.bgImageId and Options.bgImageId.Value ~= id then Options.bgImageId:SetValue(id) end
+                else
+                    clearBackground()
+                    if Options.bgImageId and Options.bgImageId.Value ~= "" then Options.bgImageId:SetValue("") end
+                end
+            end,
+        })
+
+        Tabs.Settings:AddInput("bgImageId", {
+            Title = "Image perso (ID)",
+            Default = "",
+            Placeholder = "rbxassetid://...",
+            Finished = true,
+            Callback = function(value)
+                if value ~= "" then applyBackground(value) else clearBackground() end
+            end,
+        })
+
+        Tabs.Settings:AddSlider("bgTransparency", {
+            Title = "Transparence image",
+            Default = bgState.imageTransparency,
+            Min = 0, Max = 1, Rounding = 2,
+            Callback = function(v)
+                bgState.imageTransparency = v
+                local p = findWindowFrame()
+                local bg = p and p:FindFirstChild("CustomBG")
+                if bg then bg.ImageTransparency = v end
+            end,
+        })
+
+        Tabs.Settings:AddSlider("bgDarken", {
+            Title = "Assombrissement",
+            Default = bgState.darken,
+            Min = 0, Max = 1, Rounding = 2,
+            Callback = function(v)
+                bgState.darken = v
+                local p = findWindowFrame()
+                local ov = p and p:FindFirstChild("CustomBGOverlay")
+                if ov then ov.BackgroundTransparency = v end
+            end,
+        })
+
+        Tabs.Settings:AddButton({
+            Title = "Retirer le fond",
+            Callback = function()
+                clearBackground()
+                if Options.bgPreset then Options.bgPreset:SetValue("Aucun") end
+                if Options.bgImageId then Options.bgImageId:SetValue("") end
+            end,
+        })
+
+        Tabs.Settings:AddButton({
+            Title = "🔍 Tester l'image en plein écran",
+            Callback = function()
+                local id = (Options.bgImageId and Options.bgImageId.Value ~= "") and Options.bgImageId.Value or DEFAULT_BG
+                testImage(id)
+            end,
+        })
+
+        SaveManager:SetLibrary(Fluent)
+        InterfaceManager:SetLibrary(Fluent)
+        SaveManager:IgnoreThemeSettings()
+        SaveManager:SetIgnoreIndexes({})
+        InterfaceManager:SetFolder("ProjectAtomic")
+        SaveManager:SetFolder("ProjectAtomic/PetSwarmSim")
+        InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+        SaveManager:BuildConfigSection(Tabs.Settings)
+
+        SaveManager:LoadAutoloadConfig()
+
+        task.defer(function()
+            task.wait(0.5)
+            local currentId = Options.bgImageId and Options.bgImageId.Value or ""
+            if currentId == "" then
+                applyBackground(DEFAULT_BG)
+                if Options.bgImageId then Options.bgImageId:SetValue(DEFAULT_BG) end
+                if Options.bgPreset then Options.bgPreset:SetValue("Mon fond") end
+            end
+        end)
+
+        Window:SelectTab(1)
+
+        Fluent:Notify({
+            Title = "Project-Atomic",
+            Content = "Script loaded successfully!",
+            Duration = 8
+        })
         
     else
+        -- Si la clé est fausse
         MsgLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
         MsgLabel.Text = "Clé invalide. Réessaie."
     end
