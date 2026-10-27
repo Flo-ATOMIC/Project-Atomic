@@ -1,5 +1,5 @@
 -- ============================================================
--- SYSTÈME DE CLÉ - BLACK HOLE HUB (Version Finale Xeno)
+-- SYSTÈME DE CLÉ - BLACK HOLE HUB (Version Diagnostic Avancé)
 -- ============================================================
 local player = game.Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
@@ -85,34 +85,27 @@ Msg.TextSize = 14
 Msg.Parent = KeyFrame
 
 -- ============================================================
--- FONCTION DE REQUÊTE ROBUSTE (HttpGet + Timeout)
+-- FONCTION DE REQUÊTE
 -- ============================================================
 local function MakeRequest(url)
     local result = { success = false, body = nil }
-    
-    -- On lance game:HttpGet dans un thread séparé
     local thread = task.spawn(function()
-        local ok, res = pcall(function()
-            return game:HttpGet(url)
-        end)
+        local ok, res = pcall(function() return game:HttpGet(url) end)
         if ok and res then
             result.success = true
             result.body = res
         end
     end)
 
-    -- On attend maximum 10 secondes
     local timer = 0
     while timer < 10 and not result.success do
         task.wait(0.1)
         timer = timer + 0.1
     end
 
-    -- Si c'est trop long, on annule la requête
     if not result.success then
         pcall(function() task.cancel(thread) end)
     end
-
     return result.success, result.body
 end
 
@@ -121,7 +114,6 @@ end
 -- ============================================================
 Btn.MouseButton1Click:Connect(function()
     local key = TextBox.Text
-    
     if key == "" then
         Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
         Msg.Text = "Veuillez entrer une clé."
@@ -129,35 +121,48 @@ Btn.MouseButton1Click:Connect(function()
     end
 
     Msg.TextColor3 = Color3.fromRGB(255, 255, 50)
-    Msg.Text = "Vérification en cours..."
+    Msg.Text = "Vérification..."
     Btn.Active = false
     Btn.Text = "Chargement..."
 
     local safeKey = HttpService:UrlEncode(key)
     local requestUrl = API_URL .. "?key=" .. safeKey .. "&userid=" .. tostring(player.UserId)
-    
-    -- Appel de la requête
     local success, response = MakeRequest(requestUrl)
 
     if success and response then
-        print("[KeySystem] Réponse serveur :", response)
-        
-        -- Si la réponse contient VALID
         if string.find(response, "VALID") then
             Msg.TextColor3 = Color3.fromRGB(0, 255, 0)
-            Msg.Text = "Clé validée ! Chargement du menu..."
+            Msg.Text = "Clé validée ! Chargement..."
             task.wait(1)
             KeyGui:Destroy()
             
+            -- 🚨 DIAGNOSTIC DU CHARGEMENT GITHUB
             local loadSuccess, loadErr = pcall(function()
-                loadstring(game:HttpGet(SCRIPT_URL))()
+                local code = game:HttpGet(SCRIPT_URL)
+                
+                -- Vérification si le fichier existe
+                if string.find(code, "404: Not Found") then
+                    error("Fichier introuvable sur GitHub (Erreur 404). Vérifie l'URL.")
+                end
+                
+                -- On compile le code pour voir s'il y a une erreur de syntaxe
+                local func, compileError = loadstring(code)
+                if not func then
+                    error("Erreur de syntaxe dans le script : " .. tostring(compileError))
+                end
+                
+                -- Si la compilation réussit, on exécute
+                func()
             end)
             
             if not loadSuccess then
+                warn("=====================================")
+                warn("[KeySystem] ERREUR : " .. tostring(loadErr))
+                warn("=====================================")
                 game:GetService("StarterGui"):SetCore("SendNotification", {
-                    Title = "Erreur",
-                    Text = "Impossible de charger le menu.",
-                    Duration = 5
+                    Title = "Erreur Script",
+                    Text = "Regarde ta console (F9) pour voir l'erreur exacte.",
+                    Duration = 10
                 })
             end
         else
@@ -168,9 +173,8 @@ Btn.MouseButton1Click:Connect(function()
         end
     else
         Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
-        Msg.Text = "Erreur de délai (Timeout)."
+        Msg.Text = "Erreur réseau (Timeout)."
         Btn.Active = true
         Btn.Text = "Valider la clé"
-        warn("[KeySystem] La requête a pris trop de temps ou a été bloquée.")
     end
 end)
