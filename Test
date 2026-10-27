@@ -3,7 +3,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 -- [[ CONFIGURATION DE L'API ]] --
 -- (On verra comment créer cette API à l'étape 2)
-local API_URL = "https://ton-site-web.com/api/check_key" 
+local API_URL = "https://script.google.com/macros/s/AKfycbyuPFbvWyaZ_lhVrmU25nqrJcQfknUgRI7K22SjQWGQiYmmbNRTHTdF33ZqFwZdJQG7jA/exec" 
 
 -- Création de la fenêtre pour la clé
 local KeyWindow = Fluent:CreateWindow({
