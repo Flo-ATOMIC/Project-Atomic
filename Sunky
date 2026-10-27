@@ -222,15 +222,56 @@ end
 -- ============================================================
 -- ŒUFS
 -- ============================================================
-local function doPlanting()
-    if not config.autoPlant or #eggsSelected == 0 or not PlantRemote then return end
-    for _, zone in ipairs(eggsSelected) do
-        for _ = 1, 5 do
-            task.spawn(function() pcall(PlantRemote.FireServer, PlantRemote, zone) end)
-        end
+local AutoFeedEgg = false
+
+local function GetNests()
+
+    local nestsFolder =
+        workspace:FindFirstChild(
+            "Nests"
+        )
+
+    if not nestsFolder then
+        return {}
     end
+
+    return nestsFolder:GetChildren()
+
 end
 
+local function FeedAllEggs()
+
+    if not AutoFeedEgg then
+        return
+    end
+
+    local nests =
+        GetNests()
+
+    for _, nest in ipairs(
+        nests
+    ) do
+
+        if not AutoFeedEgg then
+            break
+        end
+
+        if nest
+            and nest.Parent then
+
+            pcall(function()
+
+                FeedEggEvent:FireServer(
+                    nest
+                )
+
+            end)
+
+        end
+
+    end
+
+end
 local function doHatching()
     if not config.autoHatch or not HatchRemote then return end
     for _ = 1, 15 do
