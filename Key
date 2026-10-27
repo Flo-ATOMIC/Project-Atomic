@@ -5,7 +5,7 @@ local player = game.Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
 local API_URL = "https://script.google.com/macros/s/AKfycbzKRhr8xLOIysRv2sDbjPwNDfAls8AkWGTa8N7ivjQtae_hYEVI1wBwG3Le_yP9Q4PRLw/exec"
-local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Sunky"
+local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Black-Hole-Hub"
 
 -- ============================================================
 -- INTERFACE
