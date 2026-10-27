@@ -120,7 +120,7 @@ MsgLabel.Parent = MainFrame
 -- 2. CONFIGURATION DE LA CLÉ ET DU LIEN
 -- ============================================================
 local VALID_KEY = "TA_CLE_ICI" -- 🔑 METS TA NOUVELLE CLÉ ICI
-local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Sunky"
+local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Black-Hole-Hub"
 
 print("=========================================")
 print("[ProjectAtomic] Système de clé chargé !")
