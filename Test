@@ -1,5 +1,5 @@
 -- ============================================================
--- 1. SYSTÈME DE CLÉ (INTERFACE ROBLOX DE BASE)
+-- 1. SYSTÈME DE CLÉ AVEC IMAGE DE FOND
 -- ============================================================
 local player = game.Players.LocalPlayer
 
@@ -8,6 +8,7 @@ ScreenGui.Name = "KeySystemGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
+-- Fenêtre principale
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 400, 0, 250)
 MainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
@@ -19,6 +20,35 @@ local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0, 10)
 Corner.Parent = MainFrame
 
+-- 🎨 IMAGE DE FOND
+local BgImage = Instance.new("ImageLabel")
+BgImage.Size = UDim2.new(1, 0, 1, 0)
+BgImage.Position = UDim2.new(0, 0, 0, 0)
+BgImage.BackgroundTransparency = 1
+BgImage.Image = "rbxassetid://88045848328323" -- Ton image
+BgImage.ScaleType = Enum.ScaleType.Crop
+BgImage.ZIndex = 1
+BgImage.Parent = MainFrame
+
+local BgCorner = Instance.new("UICorner")
+BgCorner.CornerRadius = UDim.new(0, 10)
+BgCorner.Parent = BgImage
+
+-- 🎨 VOILE SOMBRE (pour lire le texte sur l'image)
+local Overlay = Instance.new("Frame")
+Overlay.Size = UDim2.new(1, 0, 1, 0)
+Overlay.Position = UDim2.new(0, 0, 0, 0)
+Overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Overlay.BackgroundTransparency = 0.5 -- 0.5 = à moitié transparent
+Overlay.BorderSizePixel = 0
+Overlay.ZIndex = 2
+Overlay.Parent = MainFrame
+
+local OverlayCorner = Instance.new("UICorner")
+OverlayCorner.CornerRadius = UDim.new(0, 10)
+OverlayCorner.Parent = Overlay
+
+-- Titre
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 50)
 Title.BackgroundTransparency = 1
@@ -26,18 +56,22 @@ Title.Text = "PROJECT ATOMIC"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.FredokaOne
 Title.TextSize = 24
+Title.ZIndex = 3
 Title.Parent = MainFrame
 
+-- Texte
 local Instruction = Instance.new("TextLabel")
 Instruction.Size = UDim2.new(1, 0, 0, 30)
 Instruction.Position = UDim2.new(0, 0, 0, 50)
 Instruction.BackgroundTransparency = 1
 Instruction.Text = "Entre ta clé d'accès :"
 Instruction.TextColor3 = Color3.fromRGB(200, 200, 200)
-Instruction.Font = Enum.Font.Gotham
+Instruction.Font = Enum.Font.GothamBold
 Instruction.TextSize = 14
+Instruction.ZIndex = 3
 Instruction.Parent = MainFrame
 
+-- Zone de texte
 local TextBox = Instance.new("TextBox")
 TextBox.Size = UDim2.new(0.8, 0, 0, 40)
 TextBox.Position = UDim2.new(0.1, 0, 0, 90)
@@ -47,12 +81,14 @@ TextBox.PlaceholderText = "Ex: ATOMIC-XXXX"
 TextBox.Text = ""
 TextBox.Font = Enum.Font.Gotham
 TextBox.TextSize = 16
+TextBox.ZIndex = 3
 TextBox.Parent = MainFrame
 
 local BoxCorner = Instance.new("UICorner")
 BoxCorner.CornerRadius = UDim.new(0, 5)
 BoxCorner.Parent = TextBox
 
+-- Bouton
 local Button = Instance.new("TextButton")
 Button.Size = UDim2.new(0.8, 0, 0, 40)
 Button.Position = UDim2.new(0.1, 0, 0, 150)
@@ -61,12 +97,14 @@ Button.TextColor3 = Color3.fromRGB(255, 255, 255)
 Button.Text = "Valider la clé"
 Button.Font = Enum.Font.GothamBold
 Button.TextSize = 16
+Button.ZIndex = 3
 Button.Parent = MainFrame
 
 local BtnCorner = Instance.new("UICorner")
 BtnCorner.CornerRadius = UDim.new(0, 5)
 BtnCorner.Parent = Button
 
+-- Message d'erreur/succès
 local MsgLabel = Instance.new("TextLabel")
 MsgLabel.Size = UDim2.new(1, 0, 0, 30)
 MsgLabel.Position = UDim2.new(0, 0, 0, 200)
@@ -75,13 +113,19 @@ MsgLabel.Text = ""
 MsgLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
 MsgLabel.Font = Enum.Font.GothamBold
 MsgLabel.TextSize = 14
+MsgLabel.ZIndex = 3
 MsgLabel.Parent = MainFrame
 
 -- ============================================================
 -- 2. CONFIGURATION DE LA CLÉ ET DU LIEN
 -- ============================================================
-local VALID_KEY = "ATOMIC-2911" -- 🔑 Change ça si tu veux une autre clé
-local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Sunky" -- 🔗 Ton lien GitHub
+local VALID_KEY = "TA_CLE_ICI" -- 🔑 METS TA NOUVELLE CLÉ ICI
+local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/Sunky"
+
+print("=========================================")
+print("[ProjectAtomic] Système de clé chargé !")
+print("[ProjectAtomic] La clé attendue est : " .. VALID_KEY)
+print("=========================================")
 
 -- ============================================================
 -- 3. LOGIQUE DE VALIDATION ET CHARGEMENT
@@ -104,12 +148,11 @@ Button.MouseButton1Click:Connect(function()
             loadstring(game:HttpGet(SCRIPT_URL))()
         end)
         
-        -- Si le script ne charge pas (erreur de lien, pas de connexion, etc.)
         if not success then
             warn("[ProjectAtomic] Erreur de chargement GitHub : " .. tostring(err))
             game:GetService("StarterGui"):SetCore("SendNotification", {
                 Title = "Erreur",
-                Text = "Impossible de charger le script. Vérifie ta connexion ou le lien.",
+                Text = "Impossible de charger le script. Vérifie le lien.",
                 Duration = 5
             })
         end
