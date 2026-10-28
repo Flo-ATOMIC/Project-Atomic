@@ -1,0 +1,11 @@
+print("Début du test...")
+task.wait(2)
+if mousemoveabs then
+    print("Mousemoveabs est supporté.")
+    mousemoveabs(100, 100) -- Déplace la souris en haut à gauche
+    print("Mouvement effectué.")
+else
+    print("Mousemoveabs N'EST PAS supporté.")
+end
+task.wait(2)
+print("Fin du test.")
