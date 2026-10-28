@@ -7,7 +7,7 @@ local VirtualUser = game:GetService("VirtualUser")
 -- 🎯 CONFIGURATION MOBILE
 local TARGET_PLAYER_NAME = "Flo_hitss"
 local TEMPS_ENTRE_2_TRADES = 10 
-local OFFSET_X = 0 -- Ajuste si ça clique à côté horizontalement
+local OFFSET_X = -50 -- Ajuste si ça clique à côté horizontalement
 local OFFSET_Y = 0 -- Ajuste si ça clique à côté verticalement (ex: 50 pour la barre de statut)
 
 local SEARCH_ORDER = {
