@@ -132,6 +132,7 @@ local SoundConnection = nil
 
 local eggPlantList = {
     { id = "34",           name = "Tower Egg" },
+    { id = "35",           name = "Crystal Egg" },
     { id = "33",           name = "Enchanted Garden Egg" },
     { id = "30",           name = "Tiki Island Egg" },
     { id = "27",           name = "Cosmos Egg" },
