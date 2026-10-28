@@ -1,239 +1,209 @@
---[[
-    AutoBackpackTeleport.lua (LocalScript)
-    À placer dans StarterPlayerScripts.
-    Version 2 — cherche le ProximityPrompt partout dans le modèle (plus de dépendance à "Handle"/"Handles").
-]]
-
--- ============ VÉRIF DE VERSION ============
-print("[AutoBackpack] >>> SCRIPT V2 CHARGÉ <<<")
-
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local GuiService = game:GetService("GuiService")
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- 🎯 CONFIGURATION
+local TARGET_PLAYER_NAME = "Flo_S4CR"
 
---------------------------------------------------------------------
--- CONFIGURATION
---------------------------------------------------------------------
-local TELEPORT_INTERVAL   = 5     -- pause entre chaque backpack (s)
-local DELAY_BEFORE_PROMPT = 0.5    -- attente après TP avant interaction
-local DELAY_AFTER_PROMPT  = 0.5    -- attente après interaction
-local DELAY_BETWEEN_LOOP  = 8      -- pause avant de reboucler
-local TELEPORT_OFFSET     = Vector3.new(0, 0, 2) -- distance du prompt
+-- ⚠️ MODIFIE CE CHIFFRE SELON LE COOLDOWN DU JEU (10, 15 ou 30 secondes)
+local TEMPS_ENTRE_2_TRADES = 10 
 
-local BACKPACK_FOLDER_NAME = "BackPack"   -- nom du dossier dans Workspace
-local BACKPACK_MODEL_NAME  = "BackPack"   -- nom des models à traiter
-local PROMPT_NAME          = "SearchBackpack" -- nom du ProximityPrompt
+local SEARCH_ORDER = {
+    "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
+    "Great Auk", "The Frozen Ancient", "Lava Monster", "Ghost Pirate",
+    "King Desert Slime", "Big 100M", "Naga", "Tiki", "Hornet",
+    "Ice Serpent", "King Julian", "Inferno Bee", "Black Ice Bee"
+}
 
---------------------------------------------------------------------
--- ÉTAT
---------------------------------------------------------------------
-local isRunning = false
+local MAX_PETS = 6 
+local DELAY_SEARCH = 0.03 
+local CLICK_HOLD = 0.03   
 
---------------------------------------------------------------------
--- UI
---------------------------------------------------------------------
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AutoBackpackUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
-
-local toggleButton = Instance.new("TextButton")
-toggleButton.Name = "ToggleButton"
-toggleButton.Size = UDim2.new(0, 180, 0, 50)
-toggleButton.Position = UDim2.new(1, -200, 0, 20)
-toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-toggleButton.Text = "AutoBackpack : OFF"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.TextSize = 16
-toggleButton.BorderSizePixel = 0
-toggleButton.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = toggleButton
-
-local function updateButtonAppearance()
-	if isRunning then
-		toggleButton.BackgroundColor3 = Color3.fromRGB(60, 180, 90)
-		toggleButton.Text = "AutoBackpack : ON"
-	else
-		toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-		toggleButton.Text = "AutoBackpack : OFF"
-	end
+-- ⚙️ FONCTION DE CLIC TURBO
+local function fastClick(button)
+    if not button then return end
+    local inset = GuiService:GetGuiInset()
+    local posX = button.AbsolutePosition.X + (button.AbsoluteSize.X / 2)
+    local posY = button.AbsolutePosition.Y + (button.AbsoluteSize.Y / 2) + inset.Y
+    
+    VirtualInputManager:SendMouseButtonEvent(posX, posY, 0, true, game, 1)
+    task.wait(CLICK_HOLD) 
+    VirtualInputManager:SendMouseButtonEvent(posX, posY, 0, false, game, 1)
 end
 
---------------------------------------------------------------------
--- UTILITAIRES
---------------------------------------------------------------------
-local function getCharacter()
-	local character = player.Character or player.CharacterAdded:Wait()
-	local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-	return character, humanoidRootPart
+-- =====================================================================
+-- 🔄 BOUCLE INFINIE
+-- =====================================================================
+while true do
+    print("🔄 Nouveau cycle de trade...")
+    
+    local Mainscreen = PlayerGui:WaitForChild("Mainscreen")
+    local TradePlayerGui = PlayerGui:WaitForChild("TradePlayer")
+    local TradingGui = PlayerGui:FindFirstChild("Trading")
+    
+    -- On s'assure que l'interface de trade précédente est bien fermée
+    if TradingGui and TradingGui.Enabled then
+        local closeTrade = TradingGui.Container.Frame:FindFirstChild("Close", true)
+        if closeTrade then fastClick(closeTrade) task.wait(0.5) end
+    end
+
+    -- 1. Ouvrir le menu de sélection
+    if not TradePlayerGui.Enabled then
+        local blueButton = Mainscreen.Right:FindFirstChild("TradePlayer")
+        if blueButton then
+            fastClick(blueButton)
+            task.wait(0.8) 
+        end
+    end
+
+    -- 2. Chercher le bouton vert de Flo_hitss
+    local scrollingFrame = TradePlayerGui.Container.General.Frame.Frame.ScrollingFrame
+    local targetGreenButton = nil
+
+    for _, obj in ipairs(scrollingFrame:GetDescendants()) do
+        if obj:IsA("TextLabel") and string.find(string.lower(obj.Text), string.lower(TARGET_PLAYER_NAME)) then
+            local parent = obj.Parent
+            while parent and parent ~= scrollingFrame do
+                local btn = parent:FindFirstChild("Trade", true)
+                if btn and btn:IsA("TextButton") then
+                    targetGreenButton = btn
+                    break
+                end
+                parent = parent.Parent
+            end
+            if targetGreenButton then break end
+        end
+    end
+
+    if targetGreenButton then
+        print("✅ Envoi de la demande à " .. TARGET_PLAYER_NAME)
+        fastClick(targetGreenButton)
+        
+        local closeBtn = TradePlayerGui.Container.General:FindFirstChild("Close", true)
+        if closeBtn then task.wait(0.2) fastClick(closeBtn) end
+    else
+        warn("❌ " .. TARGET_PLAYER_NAME .. " introuvable (Cooldown actif ?). Attente de 10 secondes...")
+        task.wait(10)
+    end
+
+    if targetGreenButton then
+        -- 3. Attendre que le trade soit accepté
+        print("⏳ Attente d'acceptation...")
+        local waitTime = 0
+        local tradeOuvert = false
+        
+        while waitTime < 60 do
+            task.wait(0.5)
+            waitTime = waitTime + 0.5
+            local tg = PlayerGui:FindFirstChild("Trading")
+            if tg and tg.Enabled then
+                tradeOuvert = true
+                break
+            end
+        end
+
+        if tradeOuvert then
+            print("🎉 Trade ouvert ! Ajout des pets...")
+            task.wait(1) 
+
+            -- 4. Ajouter les pets
+            local TradeFrame = TradingGui.Container.Frame
+            local CurInventory = TradeFrame.CurInventory.ScrollingFrame
+            local CurOffer = TradeFrame.CurOffer
+            local SearchBar = TradeFrame.CurInventory.Search:FindFirstChildOfClass("TextBox")
+
+            local function typeSearch(text)
+                SearchBar:CaptureFocus()
+                SearchBar.Text = text
+                SearchBar:ReleaseFocus()
+            end
+
+            local petsAdded = 0
+            local petsToAdd = MAX_PETS
+            
+            for _, child in ipairs(CurOffer:GetChildren()) do
+                if child:IsA("TextButton") or child.Name:find("_") then
+                    petsToAdd = petsToAdd - 1
+                end
+            end
+
+            if petsToAdd > 0 then
+                for _, petName in ipairs(SEARCH_ORDER) do
+                    if petsAdded >= petsToAdd then break end
+                    
+                    typeSearch(petName)
+                    task.wait(DELAY_SEARCH) 
+                    
+                    local foundAny = true
+                    while foundAny and petsAdded < petsToAdd do
+                        foundAny = false
+                        for _, item in ipairs(CurInventory:GetChildren()) do
+                            if petsAdded >= petsToAdd then break end
+                            
+                            if string.find(string.lower(item.Name), string.lower(petName)) then
+                                if not CurOffer:FindFirstChild(item.Name) then
+                                    local btn = item:IsA("TextButton") and item or item:FindFirstChild("Frame")
+                                    if btn then
+                                        foundAny = true
+                                        fastClick(btn)
+                                        
+                                        local waitTimer = 0
+                                        while not CurOffer:FindFirstChild(item.Name) and waitTimer < 20 do
+                                            task.wait(0.01)
+                                            waitTimer = waitTimer + 1
+                                        end
+                                        petsAdded = petsAdded + 1
+                                        break 
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                typeSearch("")
+            end
+
+            -- 🛑 SÉCURITÉ : Si on n'a plus de pets, on arrête tout
+            if petsAdded == 0 then
+                warn("🛑 Plus aucun pet rare trouvé. Arrêt de la boucle.")
+                break 
+            end
+
+            -- 5. Ready et Confirmation
+            print("⏳ Clic sur Ready !")
+            local readyBtn = TradeFrame:FindFirstChild("Ready")
+            if readyBtn then
+                fastClick(readyBtn)
+                
+                local timer = 0
+                while timer < 30 do
+                    task.wait(0.05) 
+                    timer = timer + 0.05
+                    
+                    local acceptBtn = TradeFrame:FindFirstChild("Confirm") or TradeFrame:FindFirstChild("Accept")
+                    if readyBtn and readyBtn.Text == "Accept" then acceptBtn = readyBtn end
+                    
+                    if acceptBtn then
+                        print("✅ Clic final sur Accepter !")
+                        task.wait(0.05)
+                        fastClick(acceptBtn)
+                        print("🎉 Trade terminé avec succès !")
+                        break
+                    end
+                end
+            end
+        else
+            warn("❌ Flo_hitss n'a pas accepté la demande (ou a refusé).")
+        end
+    end
+    
+    -- ⏱️ PAUSE AVANT LE PROCHAIN TRADE (Cooldown avec compte à rebours)
+    print("⏳ Cooldown du jeu : Attente de " .. TEMPS_ENTRE_2_TRADES .. " secondes...")
+    for i = TEMPS_ENTRE_2_TRADES, 1, -1 do
+        task.wait(1)
+        print("   ⏱️ Prochain trade dans " .. i .. " sec...")
+    end
+    print("🚀 Reprise de la boucle !")
 end
-
--- Cherche le ProximityPrompt n'importe où dans le modèle
-local function findPrompt(model)
-	-- 1) Priorité : un prompt nommé "SearchBackpack"
-	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("ProximityPrompt") and d.Name == PROMPT_NAME then
-			return d
-		end
-	end
-	-- 2) Sinon : n'importe quel ProximityPrompt du modèle
-	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("ProximityPrompt") then
-			return d
-		end
-	end
-	return nil
-end
-
--- Renvoie la BasePart sur laquelle est accroché le prompt (ou fallback)
-local function getAnchorPart(prompt, model)
-	local anchor = prompt and prompt.Parent
-	if anchor and anchor:IsA("BasePart") then
-		return anchor
-	end
-	-- Fallback : la première BasePart du modèle
-	return model:FindFirstChildWhichIsA("BasePart", true)
-end
-
---------------------------------------------------------------------
--- TÉLÉPORTATION
---------------------------------------------------------------------
-local function teleportToPart(targetPart)
-	local character, hrp = getCharacter()
-	if not hrp or not hrp.Parent then return false end
-	if not targetPart then
-		warn("[AutoBackpack] Pas de part cible pour se TP.")
-		return false
-	end
-
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid then humanoid.PlatformStand = true end
-
-	-- On se met devant la part, orienté vers elle
-	local targetCFrame = CFrame.new(targetPart.Position + TELEPORT_OFFSET, targetPart.Position)
-	hrp.CFrame = targetCFrame
-
-	task.wait(0.35)
-
-	if humanoid then humanoid.PlatformStand = false end
-	return true
-end
-
---------------------------------------------------------------------
--- INTERACTION (équivalent d'appuyer sur E)
---------------------------------------------------------------------
-local function interactWithPrompt(prompt)
-	if not prompt or not prompt:IsA("ProximityPrompt") then
-		warn("[AutoBackpack] Prompt invalide.")
-		return false
-	end
-
-	print(string.format(
-		"[AutoBackpack] Prompt : %s | KeyCode=%s | HoldDuration=%.2f | Enabled=%s",
-		prompt:GetFullName(),
-		tostring(prompt.KeyboardKeyCode),
-		prompt.HoldDuration or 0,
-		tostring(prompt.Enabled)
-	))
-
-	if not prompt.Enabled then
-		warn("[AutoBackpack] Prompt désactivé.")
-		return false
-	end
-
-	-- Vérif distance
-	local _, hrp = getCharacter()
-	local anchor = prompt.Parent
-	if hrp and anchor and anchor:IsA("BasePart") then
-		local dist = (hrp.Position - anchor.Position).Magnitude
-		print(string.format("[AutoBackpack] Distance au prompt : %.2f studs (max %d)",
-			dist, prompt.MaxActivationDistance))
-	end
-
-	-- InputHoldBegin = exactement ce que fait la touche E en interne
-	local okBegin, errBegin = pcall(function()
-		prompt:InputHoldBegin()
-	end)
-	if not okBegin then
-		warn("[AutoBackpack] InputHoldBegin a échoué : " .. tostring(errBegin))
-		return false
-	end
-
-	task.wait((prompt.HoldDuration or 0.5) + 0.2)
-
-	local okEnd, errEnd = pcall(function()
-		prompt:InputHoldEnd()
-	end)
-	if not okEnd then
-		warn("[AutoBackpack] InputHoldEnd a échoué : " .. tostring(errEnd))
-		return false
-	end
-
-	print("[AutoBackpack] Prompt déclenché ✅")
-	return true
-end
-
---------------------------------------------------------------------
--- TRAITEMENT D'UN BACKPACK
---------------------------------------------------------------------
-local function processBackpackModel(model)
-	local prompt = findPrompt(model)
-	if not prompt then
-		warn("[AutoBackpack] Aucun ProximityPrompt dans : " .. model:GetFullName())
-		return
-	end
-
-	local anchor = getAnchorPart(prompt, model)
-	if not teleportToPart(anchor) then
-		return
-	end
-
-	task.wait(DELAY_BEFORE_PROMPT)
-	interactWithPrompt(prompt)
-	task.wait(DELAY_AFTER_PROMPT)
-end
-
---------------------------------------------------------------------
--- BOUCLE PRINCIPALE
---------------------------------------------------------------------
-local function runLoop()
-	while isRunning do
-		local folder = Workspace:FindFirstChild(BACKPACK_FOLDER_NAME)
-		if not folder then
-			warn("[AutoBackpack] Dossier '" .. BACKPACK_FOLDER_NAME .. "' introuvable dans Workspace.")
-			break
-		end
-
-		for _, model in ipairs(folder:GetChildren()) do
-			if not isRunning then break end
-			if model:IsA("Model") and model.Name == BACKPACK_MODEL_NAME then
-				processBackpackModel(model)
-				if isRunning then
-					task.wait(TELEPORT_INTERVAL)
-				end
-			end
-		end
-
-		if isRunning then
-			task.wait(DELAY_BETWEEN_LOOP)
-		end
-	end
-end
-
---------------------------------------------------------------------
--- BOUTON
---------------------------------------------------------------------
-toggleButton.MouseButton1Click:Connect(function()
-	isRunning = not isRunning
-	updateButtonAppearance()
-
-	if isRunning then
-		task.spawn(runLoop)
-	end
-end)
