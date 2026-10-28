@@ -1,24 +1,40 @@
-print("Test de getconnections...")
-local TradeGui = game.Players.LocalPlayer.PlayerGui:FindFirstChild("Trading")
-if TradeGui then
-    local readyBtn = TradeGui.Container.Frame:FindFirstChild("Ready")
-    if readyBtn then
-        if getconnections then
-            local conns = getconnections(readyBtn.MouseButton1Click)
-            print("Connexions trouvées : " .. tostring(#conns))
-            for i, conn in ipairs(conns) do
-                print("Connexion " .. i .. " : " .. typeof(conn))
-                -- On tente de déclencher le clic de toutes les manières possibles
-                pcall(function() conn:Fire() end)
-                pcall(function() conn.Fire(conn) end)
-            end
-            print("Fin du test.")
-        else
-            print("getconnections n'est pas supporté par ton executor.")
-        end
-    else
-        print("Bouton Ready introuvable. Ouvre le trade !")
-    end
-else
-    print("Interface Trading introuvable.")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- 🎯 CONFIGURATION
+local TARGET_PLAYER_NAME = "Flo_hitss"
+
+-- 🐾 LISTE DES PETS
+local SEARCH_ORDER = {
+    "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
+    "Great Auk", "The Frozen Ancient", "Lava Monster", "Ghost Pirate",
+    "King Desert Slime", "Big 100M", "Naga", "Tiki", "Hornet",
+    "Ice Serpent", "King Julian", "Inferno Bee", "Black Ice Bee"
+}
+
+print("✅ Script chargé. Ouvre le menu de trade manuellement.")
+
+-- On attend que tu ouvres l'interface de trade
+local TradingGui = PlayerGui:WaitForChild("Trading")
+local TradeFrame = TradingGui.Container.Frame
+local SearchBar = TradeFrame.CurInventory.Search:FindFirstChildOfClass("TextBox")
+
+print("🔍 Préparation des pets...")
+
+local function typeSearch(text)
+    SearchBar:CaptureFocus()
+    SearchBar.Text = text
+    SearchBar:ReleaseFocus()
+    task.wait(0.1)
 end
+
+-- Le script va juste taper les noms un par un
+for _, petName in ipairs(SEARCH_ORDER) do
+    typeSearch(petName)
+    print("👉 À toi de cliquer sur : " .. petName)
+    task.wait(2.5) -- On te laisse 2.5 secondes pour cliquer manuellement sur le pet
+end
+
+typeSearch("")
+print("✅ Tous les pets ont été recherchés. À toi de cliquer sur READY !")
