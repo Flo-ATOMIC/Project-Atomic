@@ -1,11 +1,24 @@
-print("Début du test...")
-task.wait(2)
-if mousemoveabs then
-    print("Mousemoveabs est supporté.")
-    mousemoveabs(100, 100) -- Déplace la souris en haut à gauche
-    print("Mouvement effectué.")
+print("Test de getconnections...")
+local TradeGui = game.Players.LocalPlayer.PlayerGui:FindFirstChild("Trading")
+if TradeGui then
+    local readyBtn = TradeGui.Container.Frame:FindFirstChild("Ready")
+    if readyBtn then
+        if getconnections then
+            local conns = getconnections(readyBtn.MouseButton1Click)
+            print("Connexions trouvées : " .. tostring(#conns))
+            for i, conn in ipairs(conns) do
+                print("Connexion " .. i .. " : " .. typeof(conn))
+                -- On tente de déclencher le clic de toutes les manières possibles
+                pcall(function() conn:Fire() end)
+                pcall(function() conn.Fire(conn) end)
+            end
+            print("Fin du test.")
+        else
+            print("getconnections n'est pas supporté par ton executor.")
+        end
+    else
+        print("Bouton Ready introuvable. Ouvre le trade !")
+    end
 else
-    print("Mousemoveabs N'EST PAS supporté.")
+    print("Interface Trading introuvable.")
 end
-task.wait(2)
-print("Fin du test.")
