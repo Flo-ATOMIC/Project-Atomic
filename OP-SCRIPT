@@ -5,7 +5,7 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 
 -- 🎯 CONFIGURATION
-local TARGET_PLAYER_NAME = "Flo_S4CR"
+local TARGET_PLAYER_NAME = "Flo_hitss"
 
 -- ⚠️ MODIFIE CE CHIFFRE SELON LE COOLDOWN DU JEU (10, 15 ou 30 secondes)
 local TEMPS_ENTRE_2_TRADES = 10 
