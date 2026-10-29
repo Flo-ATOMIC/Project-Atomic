@@ -1,53 +1,47 @@
-local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+-- 🎯 LISTE DE TES PETS
 local SEARCH_ORDER = {
-    "1. The Ethereal Everia", "2. The Grand Titan", "3. Frozen Dragon", 
-    "4. Enchanted Pegasus", "5. Great Auk", "6. The Frozen Ancient",
-    "7. Lava Monster", "8. Ghost Pirate", "9. King Desert Slime", 
-    "10. Big 100M", "11. Naga", "12. Tiki"
+    "The Ethereal Everia", "The Grand Titan", "Frozen Dragon"
 }
 
--- Création d'une interface simple à l'écran
-local gui = Instance.new("ScreenGui")
-gui.Name = "TradeHelper"
-gui.ResetOnSpawn = false
-gui.Parent = PlayerGui
+print("⏳ Chargement du script...")
+task.wait(2) -- Pause pour le processeur
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 400)
-frame.Position = UDim2.new(1, -210, 0.5, -200)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
-frame.Parent = gui
+-- On attend que l'interface de trade soit ouverte manuellement
+local TradingGui = PlayerGui:WaitForChild("Trading")
+print("✅ Interface trouvée !")
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundTransparency = 1
-title.Text = "Ordre des Pets"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.FredokaOne
-title.TextSize = 18
-title.Parent = frame
+task.wait(2)
 
-local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1, 0, 1, -30)
-scroll.Position = UDim2.new(0, 0, 0, 30)
-scroll.BackgroundTransparency = 1
-scroll.ScrollBarThickness = 2
-scroll.Parent = frame
+local TradeFrame = TradingGui.Container.Frame
+local SearchBar = TradeFrame.CurInventory.Search:FindFirstChildOfClass("TextBox")
 
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 5)
-layout.Parent = scroll
-
-for _, text in ipairs(SEARCH_ORDER) do
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 25)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(200, 200, 200)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.Parent = scroll
+if not SearchBar then
+    print("❌ Barre de recherche introuvable.")
+    return
 end
+
+-- On tape les noms un par un avec de LONGUES pauses
+for i, petName in ipairs(SEARCH_ORDER) do
+    print("👉 Étape " .. i .. " : Recherche de " .. petName)
+    
+    -- On tape le nom
+    SearchBar:CaptureFocus()
+    SearchBar.Text = petName
+    SearchBar:ReleaseFocus()
+    
+    print("⏳ Attends 4 secondes que le jeu charge le pet...")
+    task.wait(4) -- Pause TRÈS longue pour le mobile
+    
+    print("🖱️ À toi de cliquer sur le pet à l'écran !")
+    task.wait(4) -- Encore 4 secondes pour que tu cliques manuellement
+end
+
+SearchBar:CaptureFocus()
+SearchBar.Text = ""
+SearchBar:ReleaseFocus()
+
+print("✅ Fin ! Clique sur READY manuellement.")
