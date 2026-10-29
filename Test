@@ -1,36 +1,53 @@
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 
--- 🎯 LISTE DE TES PETS
 local SEARCH_ORDER = {
-    "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
-    "Great Auk", "The Frozen Ancient", "Lava Monster", "Ghost Pirate",
-    "King Desert Slime", "Big 100M", "Naga", "Tiki", "Hornet",
-    "Ice Serpent", "King Julian", "Inferno Bee", "Black Ice Bee"
+    "1. The Ethereal Everia", "2. The Grand Titan", "3. Frozen Dragon", 
+    "4. Enchanted Pegasus", "5. Great Auk", "6. The Frozen Ancient",
+    "7. Lava Monster", "8. Ghost Pirate", "9. King Desert Slime", 
+    "10. Big 100M", "11. Naga", "12. Tiki"
 }
 
-print("✅ Script de recherche chargé. Ouvre le menu de trade manuellement.")
+-- Création d'une interface simple à l'écran
+local gui = Instance.new("ScreenGui")
+gui.Name = "TradeHelper"
+gui.ResetOnSpawn = false
+gui.Parent = PlayerGui
 
--- On attend que tu ouvres l'interface de trade
-local TradingGui = PlayerGui:WaitForChild("Trading")
-local TradeFrame = TradingGui.Container.Frame
-local SearchBar = TradeFrame.CurInventory.Search:FindFirstChildOfClass("TextBox")
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 400)
+frame.Position = UDim2.new(1, -210, 0.5, -200)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Parent = gui
 
-local function typeSearch(text)
-    SearchBar:CaptureFocus()
-    SearchBar.Text = text
-    SearchBar:ReleaseFocus()
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+title.Text = "Ordre des Pets"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.FredokaOne
+title.TextSize = 18
+title.Parent = frame
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, 0, 1, -30)
+scroll.Position = UDim2.new(0, 0, 0, 30)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 2
+scroll.Parent = frame
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.Parent = scroll
+
+for _, text in ipairs(SEARCH_ORDER) do
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 25)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.Parent = scroll
 end
-
--- Le script va te guider pas à pas
-for i, petName in ipairs(SEARCH_ORDER) do
-    typeSearch(petName)
-    print("👉 ["..i.."/"..6.."] Clique sur le pet : " .. petName)
-    
-    -- On attend 3 secondes pour que tu aies le temps de cliquer sur le pet
-    task.wait(3) 
-end
-
-typeSearch("")
-print("✅ Tous les pets ont été recherchés. Clique sur READY !")
