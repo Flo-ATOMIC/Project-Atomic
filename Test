@@ -1,40 +1,14 @@
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+print("Test des fonctions mobiles...")
 
--- 🎯 CONFIGURATION
-local TARGET_PLAYER_NAME = "Flo_hitss"
-
--- 🐾 LISTE DES PETS
-local SEARCH_ORDER = {
-    "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
-    "Great Auk", "The Frozen Ancient", "Lava Monster", "Ghost Pirate",
-    "King Desert Slime", "Big 100M", "Naga", "Tiki", "Hornet",
-    "Ice Serpent", "King Julian", "Inferno Bee", "Black Ice Bee"
-}
-
-print("✅ Script chargé. Ouvre le menu de trade manuellement.")
-
--- On attend que tu ouvres l'interface de trade
-local TradingGui = PlayerGui:WaitForChild("Trading")
-local TradeFrame = TradingGui.Container.Frame
-local SearchBar = TradeFrame.CurInventory.Search:FindFirstChildOfClass("TextBox")
-
-print("🔍 Préparation des pets...")
-
-local function typeSearch(text)
-    SearchBar:CaptureFocus()
-    SearchBar.Text = text
-    SearchBar:ReleaseFocus()
-    task.wait(0.1)
+if tap then
+    print("✅ Fonction 'tap' trouvée !")
+    tap(200, 200) -- Clique en haut à gauche
+elseif touch then
+    print("✅ Fonction 'touch' trouvée !")
+    touch(200, 200)
+elseif click then
+    print("✅ Fonction 'click' trouvée !")
+    click(200, 200)
+else
+    print("❌ Aucune fonction tap/touch/click trouvée.")
 end
-
--- Le script va juste taper les noms un par un
-for _, petName in ipairs(SEARCH_ORDER) do
-    typeSearch(petName)
-    print("👉 À toi de cliquer sur : " .. petName)
-    task.wait(2.5) -- On te laisse 2.5 secondes pour cliquer manuellement sur le pet
-end
-
-typeSearch("")
-print("✅ Tous les pets ont été recherchés. À toi de cliquer sur READY !")
