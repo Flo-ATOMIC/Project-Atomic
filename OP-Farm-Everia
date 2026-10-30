@@ -19,7 +19,7 @@ local BOSS_ZONE = "Zone12B2"
 
 -- ⚠️ IMPORTANT : Colle ici le lien raw de ton script (pastebin) 
 -- si tu n'utilises PAS l'auto-execute de Delta. Sinon laisse vide.
-local SCRIPT_URL = ""
+local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/OP-Farm-Everia"
 
 -- 📡 REMOTES
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
