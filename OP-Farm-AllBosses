@@ -1,5 +1,5 @@
 -- ============================================================
--- ALL BOSSES AUTO-FARM + SERVER HOP
+-- ALL BOSSES AUTO-FARM + SERVER HOP (ANTI-CRASH)
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -9,15 +9,62 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
+-- ============================================================
+-- 🧹 NETTOYAGE AU DÉMARRAGE (ANTI-CRASH)
+-- ============================================================
+-- On tue l'instance précédente si elle tourne encore
+if _G.ATOMIC_STOP then
+    pcall(function() _G.ATOMIC_STOP() end)
+end
+
+local shouldRun = true
+_G.ATOMIC_STOP = function() shouldRun = false end
+
+-- On détruit les anciens GUIs
+local pg = LocalPlayer:FindFirstChild("PlayerGui")
+if pg then
+    for _, g in ipairs(pg:GetChildren()) do
+        if g.Name == "AllBossFarmer" then
+            pcall(function() g:Destroy() end)
+        end
+    end
+end
+
+-- Pause pour laisser Roblox stabiliser la mémoire
+task.wait(3)
+
+-- ============================================================
 -- ⚙️ CONFIG
+-- ============================================================
 local AUTO_HOP = true
 local MAX_PLAYERS_SERVER = 3
-local HOP_DELAY = 2            -- Attente après le dernier kill avant hop
-local ATTACK_DELAY = 0.05      -- Délai entre 2 cycles d'attaque
-local IDLE_HOP_TIMEOUT = 60    -- Hop si aucun boss tué depuis X sec
+local HOP_DELAY = 2
+local ATTACK_DELAY = 0.05
+local IDLE_HOP_TIMEOUT = 60
+local PAUSE_AFTER_LOAD = 5         -- Pause après chargement avant de farm
+local HOP_COUNT_PAUSE = 20         -- Pause longue tous les X hops
+local HOP_PAUSE_DURATION = 60      -- Durée de la pause longue (secondes)
+
 local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/OP-Farm-AllBosses"
 
--- 👹 LISTE DES BOSS (nom exact + zone)
+-- Compteur de hops persistants entre serveurs (via fichier local si supporté)
+local hopCounterFile = "atomic_hop_count.txt"
+local hopCount = 0
+if readfile and isfile and isfile(hopCounterFile) then
+    pcall(function()
+        hopCount = tonumber(readfile(hopCounterFile)) or 0
+    end)
+end
+
+local function saveHopCount()
+    if writefile then
+        pcall(function() writefile(hopCounterFile, tostring(hopCount)) end)
+    end
+end
+
+-- ============================================================
+-- 👹 LISTE DES BOSS
+-- ============================================================
 local bosses = {
     { name = "Naga",                zone = "Zone2B1" },
     { name = "Lava Monster",        zone = "Zone5B1" },
@@ -31,18 +78,21 @@ local bosses = {
     { name = "Great Sphinx",        zone = "ElementEventZoneB1" },
 }
 
--- État par boss
 local bossState = {}
 for _, b in ipairs(bosses) do
     bossState[b.name] = { wasAlive = false }
 end
 
+-- ============================================================
 -- 📡 REMOTES
+-- ============================================================
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
 local Functions = Remotes and Remotes:FindFirstChild("Functions")
 local CombatRemote = Functions and Functions:FindFirstChild("CombatRF")
 
+-- ============================================================
 -- 🔄 ÉTAT
+-- ============================================================
 local isFarming = true
 local hopInProgress = false
 local lastKillTime = os.clock()
@@ -54,7 +104,7 @@ local totalKills = 0
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AllBossFarmer"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Parent = pg
 
 local btn = Instance.new("TextButton")
 btn.Size = UDim2.new(0, 220, 0, 45)
@@ -70,14 +120,14 @@ local hopBtn = Instance.new("TextButton")
 hopBtn.Size = UDim2.new(0, 220, 0, 40)
 hopBtn.Position = UDim2.new(0, 20, 0, 200)
 hopBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-hopBtn.Text = "🚀 FORCE HOP (test)"
+hopBtn.Text = "🚀 FORCE HOP (Hops: " .. hopCount .. ")"
 hopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 hopBtn.Font = Enum.Font.FredokaOne
 hopBtn.TextSize = 13
 hopBtn.Parent = ScreenGui
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0, 260, 0, 20)
+statusLabel.Size = UDim2.new(0, 260, 0, 40)
 statusLabel.Position = UDim2.new(0, 20, 0, 245)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "Démarrage..."
@@ -85,6 +135,7 @@ statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
 statusLabel.TextStrokeTransparency = 0
 statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextSize = 12
+statusLabel.TextWrapped = true
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.Parent = ScreenGui
 
@@ -145,7 +196,22 @@ end
 local function serverHop()
     if hopInProgress then return end
     hopInProgress = true
-    setStatus("🚀 Server hop...")
+    
+    hopCount = hopCount + 1
+    saveHopCount()
+    hopBtn.Text = "🚀 FORCE HOP (Hops: " .. hopCount .. ")"
+    
+    -- 🛑 PAUSE LONGUE tous les X hops pour éviter le crash
+    if hopCount % HOP_COUNT_PAUSE == 0 then
+        setStatus("☕ Pause anti-crash " .. HOP_PAUSE_DURATION .. "s (Hop " .. hopCount .. ")")
+        for i = HOP_PAUSE_DURATION, 1, -1 do
+            if not shouldRun then return end
+            statusLabel.Text = "☕ Pause anti-crash: " .. i .. "s (Hop " .. hopCount .. ")"
+            task.wait(1)
+        end
+    end
+    
+    setStatus("🚀 Server hop... (Total: " .. hopCount .. ")")
     
     if queue_on_teleport and SCRIPT_URL ~= "" then
         pcall(function()
@@ -172,74 +238,78 @@ hopBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
--- 🔄 BOUCLE PRINCIPALE
+-- 🔄 BOUCLE PRINCIPALE (avec flag shouldRun)
 -- ============================================================
-task.spawn(function()
-    while true do
-        task.wait(ATTACK_DELAY)
-        if not isFarming then continue end
-        
-        local zones = Workspace:FindFirstChild("Zones")
-        if not zones then continue end
-        
-        local pets = getPets()
-        if #pets == 0 then continue end
-        
-        local aliveCount = 0
-        
-        for _, b in ipairs(bosses) do
-            local zone = zones:FindFirstChild(b.zone)
-            if zone then
-                local enemies = zone:FindFirstChild("Enemies")
-                if enemies then
-                    local boss = enemies:FindFirstChild(b.name)
-                    
-                    -- Vérif vivant
-                    local alive = false
-                    if boss and boss.Parent then
-                        local hum = boss:FindFirstChildOfClass("Humanoid")
-                        if not hum or hum.Health > 0 then
-                            alive = true
-                        end
-                    end
-                    
-                    local state = bossState[b.name]
-                    
-                    if alive then
-                        aliveCount = aliveCount + 1
-                        state.wasAlive = true
+setStatus("⏳ Pause de chargement...")
+task.wait(PAUSE_AFTER_LOAD)
+
+if shouldRun then
+    task.spawn(function()
+        while shouldRun do
+            task.wait(ATTACK_DELAY)
+            if not isFarming then continue end
+            
+            local zones = Workspace:FindFirstChild("Zones")
+            if not zones then continue end
+            
+            local pets = getPets()
+            if #pets == 0 then continue end
+            
+            local aliveCount = 0
+            
+            for _, b in ipairs(bosses) do
+                if not shouldRun then break end
+                
+                local zone = zones:FindFirstChild(b.zone)
+                if zone then
+                    local enemies = zone:FindFirstChild("Enemies")
+                    if enemies then
+                        local boss = enemies:FindFirstChild(b.name)
                         
-                        -- ⚡ Attaque avec TOUS les pets
-                        for _, pet in ipairs(pets) do
-                            attackEnemy(boss, pet)
+                        local alive = false
+                        if boss and boss.Parent then
+                            local hum = boss:FindFirstChildOfClass("Humanoid")
+                            if not hum or hum.Health > 0 then
+                                alive = true
+                            end
                         end
-                    elseif state.wasAlive then
-                        -- 💀 Boss vient de mourir
-                        state.wasAlive = false
-                        totalKills = totalKills + 1
-                        lastKillTime = os.clock()
-                        btn.Text = (isFarming and "ALL BOSS: ON" or "ALL BOSS: OFF") .. " (Kills: " .. totalKills .. ")"
-                        print("💀 " .. b.name .. " tué ! (Total: " .. totalKills .. ")")
+                        
+                        local state = bossState[b.name]
+                        
+                        if alive then
+                            aliveCount = aliveCount + 1
+                            state.wasAlive = true
+                            
+                            for _, pet in ipairs(pets) do
+                                attackEnemy(boss, pet)
+                            end
+                        elseif state.wasAlive then
+                            state.wasAlive = false
+                            totalKills = totalKills + 1
+                            lastKillTime = os.clock()
+                            btn.Text = (isFarming and "ALL BOSS: ON" or "ALL BOSS: OFF") .. " (Kills: " .. totalKills .. ")"
+                            print("💀 " .. b.name .. " tué ! (Total: " .. totalKills .. " | Hop: " .. hopCount .. ")")
+                        end
                     end
                 end
             end
-        end
-        
-        setStatus("👹 Vivants: " .. aliveCount .. "/" .. #bosses .. " | Kills: " .. totalKills)
-        
-        local timeSinceKill = os.clock() - lastKillTime
-        
-        if aliveCount == 0 then
-            if totalKills > 0 and timeSinceKill >= HOP_DELAY then
-                print("🚀 Tous les boss morts, hop...")
-                serverHop()
-            elseif totalKills == 0 and timeSinceKill >= IDLE_HOP_TIMEOUT then
-                print("🚀 Aucun boss depuis " .. IDLE_HOP_TIMEOUT .. "s, hop...")
-                lastKillTime = os.clock()
-                serverHop()
+            
+            setStatus("👹 Vivants: " .. aliveCount .. "/" .. #bosses .. " | Kills: " .. totalKills .. " | Hop: " .. hopCount)
+            
+            local timeSinceKill = os.clock() - lastKillTime
+            
+            if aliveCount == 0 then
+                if totalKills > 0 and timeSinceKill >= HOP_DELAY then
+                    print("🚀 Tous les boss morts, hop...")
+                    serverHop()
+                elseif totalKills == 0 and timeSinceKill >= IDLE_HOP_TIMEOUT then
+                    print("🚀 Aucun boss depuis " .. IDLE_HOP_TIMEOUT .. "s, hop...")
+                    lastKillTime = os.clock()
+                    serverHop()
+                end
             end
         end
-    end
-end)
+    end)
+end
 
-print("✅ Script All Bosses chargé !")
+print("✅ Script All Bosses chargé ! (Hops totaux: " .. hopCount .. ")")
