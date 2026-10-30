@@ -1,1 +1,186 @@
+-- ============================================================
+-- EVERIA AUTO-FARM + SERVER HOP (VERSION FINALE)
+-- ============================================================
 
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ⚙️ CONFIG
+local AUTO_HOP = true
+local MAX_PLAYERS_SERVER = 3
+local HOP_DELAY = 2
+local ATTACK_DELAY = 0.05
+local BOSS_NAME = "The Ethereal Everia"
+local BOSS_ZONE = "Zone12B2"
+
+-- ⚠️ IMPORTANT : Colle ici le lien raw de ton script (pastebin) 
+-- si tu n'utilises PAS l'auto-execute de Delta. Sinon laisse vide.
+local SCRIPT_URL = ""
+
+-- 📡 REMOTES
+local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local Functions = Remotes and Remotes:FindFirstChild("Functions")
+local CombatRemote = Functions and Functions:FindFirstChild("CombatRF")
+
+-- 🔄 ÉTAT
+local isFarming = true
+local bossWasAlive = false
+local hopInProgress = false
+local killCount = 0
+
+-- ============================================================
+-- 🎮 INTERFACE
+-- ============================================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "EveriaFarmer"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0, 180, 0, 45)
+btn.Position = UDim2.new(0, 20, 0, 150)
+btn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+btn.Text = "EVERIA: ON (Kills: 0)"
+btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+btn.Font = Enum.Font.FredokaOne
+btn.TextSize = 14
+btn.Parent = ScreenGui
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0, 200, 0, 20)
+statusLabel.Position = UDim2.new(0, 20, 0, 200)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Démarrage..."
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+statusLabel.TextStrokeTransparency = 0
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextSize = 12
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = ScreenGui
+
+local function setStatus(msg)
+    statusLabel.Text = msg
+end
+
+btn.MouseButton1Click:Connect(function()
+    isFarming = not isFarming
+    btn.Text = (isFarming and "EVERIA: ON" or "EVERIA: OFF") .. " (Kills: " .. killCount .. ")"
+    btn.BackgroundColor3 = isFarming and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+end)
+
+-- ============================================================
+-- 🐾 & ⚔️
+-- ============================================================
+local function getPets()
+    if LocalPlayer.Character then
+        local p = LocalPlayer.Character:FindFirstChild("Pets")
+        if p then return p:GetChildren() end
+    end
+    return {}
+end
+
+local function attackEnemy(enemy, pet)
+    if CombatRemote then
+        pcall(function() CombatRemote:InvokeServer("AttackEnemy", enemy, pet) end)
+    end
+end
+
+-- ============================================================
+-- 🚀 SERVER HOP
+-- ============================================================
+local function findBestServer()
+    local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+    local ok, raw = pcall(function() return game:HttpGet(url) end)
+    if not ok then return nil end
+    
+    local okJson, data = pcall(function() return HttpService:JSONDecode(raw) end)
+    if not okJson or not data or not data.data then return nil end
+    
+    local candidates = {}
+    for _, srv in ipairs(data.data) do
+        if srv.id ~= game.JobId and srv.playing < srv.maxPlayers and srv.playing <= MAX_PLAYERS_SERVER then
+            table.insert(candidates, srv)
+        end
+    end
+    if #candidates == 0 then
+        for _, srv in ipairs(data.data) do
+            if srv.id ~= game.JobId and srv.playing < srv.maxPlayers then
+                table.insert(candidates, srv)
+            end
+        end
+    end
+    table.sort(candidates, function(a, b) return a.playing < b.playing end)
+    return candidates[1]
+end
+
+local function serverHop()
+    if hopInProgress then return end
+    hopInProgress = true
+    setStatus("🚀 Server hop...")
+    
+    if queue_on_teleport and SCRIPT_URL ~= "" then
+        pcall(function()
+            queue_on_teleport("loadstring(game:HttpGet('" .. SCRIPT_URL .. "'))()")
+        end)
+    end
+    
+    local target = findBestServer()
+    local success = false
+    if target then
+        success = pcall(function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, target.id, LocalPlayer)
+        end)
+    end
+    if not success then
+        pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
+    end
+    hopInProgress = false
+end
+
+-- ============================================================
+-- 🔄 BOUCLE PRINCIPALE
+-- ============================================================
+task.spawn(function()
+    while true do
+        task.wait(ATTACK_DELAY)
+        if not isFarming then continue end
+        
+        local zone = Workspace:FindFirstChild("Zones") and Workspace.Zones:FindFirstChild(BOSS_ZONE)
+        if not zone then continue end
+        local enemies = zone:FindFirstChild("Enemies")
+        if not enemies then continue end
+        local everia = enemies:FindFirstChild(BOSS_NAME)
+        
+        local isAlive = false
+        if everia and everia.Parent then
+            local hum = everia:FindFirstChildOfClass("Humanoid")
+            if not hum or hum.Health > 0 then isAlive = true end
+        end
+        
+        if isAlive then
+            if not bossWasAlive then
+                setStatus("⚔️ Attaque en cours")
+                bossWasAlive = true
+            end
+            local pets = getPets()
+            for _, pet in ipairs(pets) do
+                attackEnemy(everia, pet)
+            end
+        elseif bossWasAlive then
+            bossWasAlive = false
+            killCount = killCount + 1
+            btn.Text = "EVERIA: ON (Kills: " .. killCount .. ")"
+            setStatus("💀 Boss tué, hop dans " .. HOP_DELAY .. "s")
+            task.wait(HOP_DELAY)
+            if AUTO_HOP then serverHop() end
+        else
+            setStatus("⏳ En attente du boss")
+        end
+    end
+end)
+
+print("✅ Script Everia final chargé !")
