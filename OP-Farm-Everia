@@ -1,5 +1,5 @@
 -- ============================================================
--- EVERIA AUTO-FARM + SERVER HOP (VERSION FINALE)
+-- ALL BOSSES AUTO-FARM + SERVER HOP
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -12,14 +12,30 @@ local LocalPlayer = Players.LocalPlayer
 -- ⚙️ CONFIG
 local AUTO_HOP = true
 local MAX_PLAYERS_SERVER = 3
-local HOP_DELAY = 2
-local ATTACK_DELAY = 0.05
-local BOSS_NAME = "The Ethereal Everia"
-local BOSS_ZONE = "Zone12B2"
+local HOP_DELAY = 2            -- Attente après le dernier kill avant hop
+local ATTACK_DELAY = 0.05      -- Délai entre 2 cycles d'attaque
+local IDLE_HOP_TIMEOUT = 60    -- Hop si aucun boss tué depuis X sec
+local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/OP-Farm-AllBosses"
 
--- ⚠️ IMPORTANT : Colle ici le lien raw de ton script (pastebin) 
--- si tu n'utilises PAS l'auto-execute de Delta. Sinon laisse vide.
-local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/OP-Farm-Everia"
+-- 👹 LISTE DES BOSS (nom exact + zone)
+local bosses = {
+    { name = "Naga",                zone = "Zone2B1" },
+    { name = "Lava Monster",        zone = "Zone5B1" },
+    { name = "Ghost Pirate",        zone = "Zone8B1" },
+    { name = "Tiki Monster",        zone = "Zone10B1" },
+    { name = "The Frozen Ancient",  zone = "Zone12B1" },
+    { name = "The Big 100M",        zone = "Zone12B3" },
+    { name = "The Ethereal Everia", zone = "Zone12B2" },
+    { name = "Hornet Boss",         zone = "SummerEventZoneB1" },
+    { name = "The Ice Serpent",     zone = "WinterEventZoneB1" },
+    { name = "Great Sphinx",        zone = "ElementEventZoneB1" },
+}
+
+-- État par boss
+local bossState = {}
+for _, b in ipairs(bosses) do
+    bossState[b.name] = { wasAlive = false }
+end
 
 -- 📡 REMOTES
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
@@ -28,31 +44,41 @@ local CombatRemote = Functions and Functions:FindFirstChild("CombatRF")
 
 -- 🔄 ÉTAT
 local isFarming = true
-local bossWasAlive = false
 local hopInProgress = false
-local killCount = 0
+local lastKillTime = os.clock()
+local totalKills = 0
 
 -- ============================================================
--- 🎮 INTERFACE
+-- 🎮 UI
 -- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "EveriaFarmer"
+ScreenGui.Name = "AllBossFarmer"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(0, 180, 0, 45)
+btn.Size = UDim2.new(0, 220, 0, 45)
 btn.Position = UDim2.new(0, 20, 0, 150)
 btn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-btn.Text = "EVERIA: ON (Kills: 0)"
+btn.Text = "ALL BOSS: ON (Kills: 0)"
 btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 btn.Font = Enum.Font.FredokaOne
 btn.TextSize = 14
 btn.Parent = ScreenGui
 
+local hopBtn = Instance.new("TextButton")
+hopBtn.Size = UDim2.new(0, 220, 0, 40)
+hopBtn.Position = UDim2.new(0, 20, 0, 200)
+hopBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+hopBtn.Text = "🚀 FORCE HOP (test)"
+hopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+hopBtn.Font = Enum.Font.FredokaOne
+hopBtn.TextSize = 13
+hopBtn.Parent = ScreenGui
+
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0, 200, 0, 20)
-statusLabel.Position = UDim2.new(0, 20, 0, 200)
+statusLabel.Size = UDim2.new(0, 260, 0, 20)
+statusLabel.Position = UDim2.new(0, 20, 0, 245)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "Démarrage..."
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
@@ -68,7 +94,7 @@ end
 
 btn.MouseButton1Click:Connect(function()
     isFarming = not isFarming
-    btn.Text = (isFarming and "EVERIA: ON" or "EVERIA: OFF") .. " (Kills: " .. killCount .. ")"
+    btn.Text = (isFarming and "ALL BOSS: ON" or "ALL BOSS: OFF") .. " (Kills: " .. totalKills .. ")"
     btn.BackgroundColor3 = isFarming and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
 end)
 
@@ -96,7 +122,6 @@ local function findBestServer()
     local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
     local ok, raw = pcall(function() return game:HttpGet(url) end)
     if not ok then return nil end
-    
     local okJson, data = pcall(function() return HttpService:JSONDecode(raw) end)
     if not okJson or not data or not data.data then return nil end
     
@@ -141,6 +166,11 @@ local function serverHop()
     hopInProgress = false
 end
 
+hopBtn.MouseButton1Click:Connect(function()
+    hopInProgress = false
+    task.spawn(serverHop)
+end)
+
 -- ============================================================
 -- 🔄 BOUCLE PRINCIPALE
 -- ============================================================
@@ -149,38 +179,67 @@ task.spawn(function()
         task.wait(ATTACK_DELAY)
         if not isFarming then continue end
         
-        local zone = Workspace:FindFirstChild("Zones") and Workspace.Zones:FindFirstChild(BOSS_ZONE)
-        if not zone then continue end
-        local enemies = zone:FindFirstChild("Enemies")
-        if not enemies then continue end
-        local everia = enemies:FindFirstChild(BOSS_NAME)
+        local zones = Workspace:FindFirstChild("Zones")
+        if not zones then continue end
         
-        local isAlive = false
-        if everia and everia.Parent then
-            local hum = everia:FindFirstChildOfClass("Humanoid")
-            if not hum or hum.Health > 0 then isAlive = true end
+        local pets = getPets()
+        if #pets == 0 then continue end
+        
+        local aliveCount = 0
+        
+        for _, b in ipairs(bosses) do
+            local zone = zones:FindFirstChild(b.zone)
+            if zone then
+                local enemies = zone:FindFirstChild("Enemies")
+                if enemies then
+                    local boss = enemies:FindFirstChild(b.name)
+                    
+                    -- Vérif vivant
+                    local alive = false
+                    if boss and boss.Parent then
+                        local hum = boss:FindFirstChildOfClass("Humanoid")
+                        if not hum or hum.Health > 0 then
+                            alive = true
+                        end
+                    end
+                    
+                    local state = bossState[b.name]
+                    
+                    if alive then
+                        aliveCount = aliveCount + 1
+                        state.wasAlive = true
+                        
+                        -- ⚡ Attaque avec TOUS les pets
+                        for _, pet in ipairs(pets) do
+                            attackEnemy(boss, pet)
+                        end
+                    elseif state.wasAlive then
+                        -- 💀 Boss vient de mourir
+                        state.wasAlive = false
+                        totalKills = totalKills + 1
+                        lastKillTime = os.clock()
+                        btn.Text = (isFarming and "ALL BOSS: ON" or "ALL BOSS: OFF") .. " (Kills: " .. totalKills .. ")"
+                        print("💀 " .. b.name .. " tué ! (Total: " .. totalKills .. ")")
+                    end
+                end
+            end
         end
         
-        if isAlive then
-            if not bossWasAlive then
-                setStatus("⚔️ Attaque en cours")
-                bossWasAlive = true
+        setStatus("👹 Vivants: " .. aliveCount .. "/" .. #bosses .. " | Kills: " .. totalKills)
+        
+        local timeSinceKill = os.clock() - lastKillTime
+        
+        if aliveCount == 0 then
+            if totalKills > 0 and timeSinceKill >= HOP_DELAY then
+                print("🚀 Tous les boss morts, hop...")
+                serverHop()
+            elseif totalKills == 0 and timeSinceKill >= IDLE_HOP_TIMEOUT then
+                print("🚀 Aucun boss depuis " .. IDLE_HOP_TIMEOUT .. "s, hop...")
+                lastKillTime = os.clock()
+                serverHop()
             end
-            local pets = getPets()
-            for _, pet in ipairs(pets) do
-                attackEnemy(everia, pet)
-            end
-        elseif bossWasAlive then
-            bossWasAlive = false
-            killCount = killCount + 1
-            btn.Text = "EVERIA: ON (Kills: " .. killCount .. ")"
-            setStatus("💀 Boss tué, hop dans " .. HOP_DELAY .. "s")
-            task.wait(HOP_DELAY)
-            if AUTO_HOP then serverHop() end
-        else
-            setStatus("⏳ En attente du boss")
         end
     end
 end)
 
-print("✅ Script Everia final chargé !")
+print("✅ Script All Bosses chargé !")
