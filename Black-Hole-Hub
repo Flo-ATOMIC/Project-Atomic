@@ -117,11 +117,13 @@ local foodZones = {
 local config = {
     farmBosses = false, farmEnemies = false, farmFood = false,
     doubleJump = false, walkSpeed = 16,
-    bossAttackDelay = 0.5, enemyDelay = 0.1, foodDelay = 0.1,
+    bossAttackDelay = 0.05,   -- ⬇️ Réduit par défaut (0.5 → 0.05)
+    enemyDelay = 0.1, foodDelay = 0.1,
 }
 
 local activeBosses = {}
 local jumpConnection, jumpCount = nil, 0
+local lastBossAttack = 0      -- ⚡ Rate limiter interne pour les boss
 
 local AutoHatch = false
 local AutoFeedEgg = false
@@ -132,7 +134,7 @@ local SoundConnection = nil
 
 local eggPlantList = {
     { id = "34",           name = "Tower Egg" },
-    { id = "12.1",           name = "Crystal Egg" },
+    { id = "12.1",         name = "Crystal Egg" },
     { id = "33",           name = "Enchanted Garden Egg" },
     { id = "30",           name = "Tiki Island Egg" },
     { id = "27",           name = "Cosmos Egg" },
@@ -176,14 +178,28 @@ local function attackEnemiesInZone(zoneName, specificEnemy, attackAll)
     end
 end
 
+-- ============================================================
+-- ⚡ ATTAQUE BOSS OPTIMISÉE (tous pets × tous boss, en parallèle)
+-- ============================================================
 local function attackBosses()
     if not config.farmBosses or #activeBosses == 0 then return end
+    
+    -- Rate limiter interne (respecte le slider bossAttackDelay sans bloquer)
+    local now = os.clock()
+    if now - lastBossAttack < config.bossAttackDelay then return end
+    lastBossAttack = now
+    
     local pets = updatePets()
     if #pets == 0 then return end
+    
+    -- Pour chaque boss, on lance une attaque en parallèle avec TOUS les pets
     for _, boss in ipairs(activeBosses) do
         if boss and boss.Parent then
-            safeAttackEnemy(boss, pets[1])
-            task.wait(config.bossAttackDelay)
+            task.spawn(function()
+                for _, pet in ipairs(pets) do
+                    safeAttackEnemy(boss, pet)
+                end
+            end)
         end
     end
 end
@@ -374,44 +390,35 @@ local Window = WindUI:CreateWindow({
     Author = "by Flo_S4CR",
     Folder = "ProjectAtomic",
     Size = UDim2.fromOffset(580, 460),
-    
-    -- Ton image de fond
     Background = "rbxassetid://130707247063445",
-    BackgroundImageTransparency = 0.42, 
-    
+    BackgroundImageTransparency = 0.42,
     Transparent = true,
     Theme = "Dark",
     SideBarWidth = 180,
 })
 
--- ✅ La touche pour réduire/rouvrir le menu (LeftControl par défaut)
 pcall(function()
     Window:SetToggleKey(Enum.KeyCode.LeftControl)
 end)
 
--- ✅ Ajout du profil en bas à gauche (Avatar + Nom + Discord)
 task.spawn(function()
-    task.wait(0.5) 
+    task.wait(0.5)
     pcall(function()
         Window:UserProfile({
             Name = LocalPlayer.DisplayName,
-            Description = "@flo.s4cr", -- Change ça par ton vrai Discord
+            Description = "@flo.s4cr",
             Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=150&h=150",
         })
     end)
 end)
 
--- Création des Onglets (Sécurisée)
 local Tabs = {}
 local function createTab(key, title, icon)
     local success, tab = pcall(function()
         return Window:Tab({ Title = title, Icon = icon })
     end)
-    if success then
-        Tabs[key] = tab
-    else
-        warn("[WindUI] Échec de la création de l'onglet : " .. title)
-    end
+    if success then Tabs[key] = tab
+    else warn("[WindUI] Échec de la création de l'onglet : " .. title) end
 end
 
 createTab("Main", "Main", "home")
@@ -440,7 +447,13 @@ end
 -- ============================================================
 if Tabs.Speed then
     Tabs.Speed:Section({ Title = "Delays" })
-    Tabs.Speed:Slider({ Title = "Boss Attack Delay", Step = 0.1, Value = { Min = 0.1, Max = 1, Default = config.bossAttackDelay }, Callback = function(v) config.bossAttackDelay = v end })
+    -- ⚡ Slider boss avec minimum 0.01 (au lieu de 0.1)
+    Tabs.Speed:Slider({
+        Title = "Boss Attack Delay",
+        Step = 0.01,
+        Value = { Min = 0.01, Max = 1, Default = config.bossAttackDelay },
+        Callback = function(v) config.bossAttackDelay = v end
+    })
     Tabs.Speed:Slider({ Title = "Enemy Cycle Delay", Step = 0.05, Value = { Min = 0.05, Max = 1, Default = config.enemyDelay }, Callback = function(v) config.enemyDelay = v end })
     Tabs.Speed:Slider({ Title = "Food Cycle Delay", Step = 0.05, Value = { Min = 0.05, Max = 3, Default = config.foodDelay }, Callback = function(v) config.foodDelay = v end })
     Tabs.Speed:Slider({ Title = "Plant Delay", Step = 0.001, Value = { Min = 0.001, Max = 0.5, Default = PlantDelay }, Callback = function(v) PlantDelay = v end })
@@ -640,13 +653,9 @@ if Tabs.Misc then
         Value = false,
         Callback = function(Value)
             RemoveFarmSounds = Value
-            if Value then
-                EnableSoundRemover()
+            if Value then EnableSoundRemover()
             else
-                if SoundConnection then
-                    SoundConnection:Disconnect()
-                    SoundConnection = nil
-                end
+                if SoundConnection then SoundConnection:Disconnect(); SoundConnection = nil end
             end
         end
     })
