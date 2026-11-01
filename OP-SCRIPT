@@ -369,7 +369,7 @@ local function createTab(key, title, icon)
 end
 
 createTab("Main", "Main", "home")
-createTab("Trade", "Trade", "refresh")
+createTab("Settings", "Setting", "Set")
 createTab("Speed", "Speed", "timer")
 createTab("Enemies", "Enemies", "swords")
 createTab("Food", "Food", "apple")
@@ -394,7 +394,7 @@ end
 -- TAB TRADE (FONCTIONNEL)
 -- ============================================================
 if Tabs.Trade then
-    Tabs.Trade:Section({ Title = "Auto Trade" })
+    Tabs.Trade:Section({ Title = "Add on" })
 
     Tabs.Trade:Input({
         Title = "Joueur cible",
@@ -410,7 +410,7 @@ if Tabs.Trade then
     })
 
     Tabs.Trade:Slider({
-        Title = "Cooldown entre trades",
+        Title = "Cooldown for farm",
         Desc = "Secondes entre deux trades",
         Step = 1,
         Value = { Min = 5, Max = 30, Default = TEMPS_ENTRE_2_TRADES },
@@ -418,7 +418,7 @@ if Tabs.Trade then
     })
 
     Tabs.Trade:Toggle({
-        Title = "Cacher Decline et Close",
+        Title = "Hide UI",
         Desc = "Désactive ces boutons dès que le trade s'ouvre",
         Value = HIDE_DECLINE_CLOSE,
         Callback = function(v) HIDE_DECLINE_CLOSE = v end
@@ -428,7 +428,7 @@ if Tabs.Trade then
 
     -- 🆕 Toggle activé par défaut
     Tabs.Trade:Toggle({
-        Title = "Enable Auto Trade",
+        Title = "Enable Auto Farm",
         Desc = "Démarre/arrête la boucle d'auto-trade",
         Value = true,
         Callback = function(v)
@@ -443,7 +443,7 @@ if Tabs.Trade then
     })
 
     Tabs.Trade:Button({
-        Title = "Force 1 Trade",
+        Title = "Force Farm",
         Desc = "Fait un seul trade sans lancer la boucle",
         Callback = function()
             task.spawn(function()
