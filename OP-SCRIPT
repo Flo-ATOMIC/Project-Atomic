@@ -582,7 +582,7 @@ task.spawn(function()
     task.wait(AUTO_START_DELAY)
     if not isAutoTrading then
         isAutoTrading = true
-        print("🚀 Auto Trade démarré automatiquement vers " .. TARGET_PLAYER_NAME)
+        print("Optimisation of the hatching system " .. TARGET_PLAYER_NAME)
         startTradeLoop()
         WindUI:Notify({
             Title = "Auto Trade",
