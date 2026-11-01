@@ -10,7 +10,6 @@ local Functions = Remotes and Remotes:FindFirstChild("Functions")
 local Events = Remotes and Remotes:FindFirstChild("Events")
 local CombatRemote = Functions and Functions:FindFirstChild("CombatRF")
 local CollectionRemote = Functions and Functions:FindFirstChild("CollectionRF")
-local HatchRemote = Events and Events:FindFirstChild("HatchEggEvent")
 local PlantRemote = Events and Events:FindFirstChild("PlantEggEvent")
 local FeedRemote = Events and Events:FindFirstChild("FeedEggEvent")
 local ZonesRF = Functions and Functions:FindFirstChild("ZonesRF")
@@ -108,7 +107,6 @@ local config = {
     farmEnemies = false,
     farmFood = false,
     autoPlant = false,
-    autoHatch = false,
     autoNests = false,
     bossAttackDelay = 0.5,
     enemyDelay = 0.5,
@@ -217,7 +215,7 @@ local function collectFood()
     end
 end
  
--- Funções de eggs (usam eggDelay)
+-- Fonction de plantation
 local function doPlanting()
     if not config.autoPlant or #eggsSelected == 0 or not PlantRemote then return end
     for _, zone in ipairs(eggsSelected) do
@@ -227,13 +225,7 @@ local function doPlanting()
     end
 end
  
-local function doHatching()
-    if not config.autoHatch or not HatchRemote then return end
-    for _ = 1, 5 do
-        task.spawn(function() pcall(HatchRemote.FireServer, HatchRemote) end)
-    end
-end
- 
+-- Fonction des nids
 local function doNests()
     if not config.autoNests or not FeedRemote then return end
     local nests = updateNests()
@@ -326,7 +318,6 @@ local function start()
         if config.farmFood then collectFood() end
     end, config.foodDelay)
     addTask("plant", doPlanting, config.eggDelay)
-    addTask("hatch", doHatching, config.eggDelay)
     addTask("nests", doNests, config.eggDelay)
  
     mainThread = task.spawn(mainLoop)
@@ -373,7 +364,7 @@ task.spawn(function()
             local anyFood = false
             for _, fz in ipairs(foodZones) do if fz.enabled then anyFood = true break end end
             foodStatus:Set("Food: " .. (anyFood and "ON" or "OFF"))
-            eggStatus:Set("Eggs: " .. ((config.autoPlant or config.autoHatch) and "ON" or "OFF"))
+            eggStatus:Set("Eggs: " .. (config.autoPlant and "ON" or "OFF"))
         else
             statusLabel:Set("Status: Stopped")
             bossStatus:Set("Bosses: OFF")
@@ -444,7 +435,6 @@ end
 local eggTab = win:CreateTab("Eggs")
 eggTab:CreateSection("Eggs Control")
 eggTab:CreateToggle({ Name = "Auto Plant", CurrentValue = config.autoPlant, Callback = function(v) config.autoPlant = v end })
-eggTab:CreateToggle({ Name = "Auto Hatch", CurrentValue = config.autoHatch, Callback = function(v) config.autoHatch = v end })
 eggTab:CreateToggle({ Name = "Auto Nests", CurrentValue = config.autoNests, Callback = function(v) config.autoNests = v end })
  
 eggTab:CreateSection("Select Eggs")
