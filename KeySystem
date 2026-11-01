@@ -1,0 +1,180 @@
+-- ============================================================
+-- SYSTÈME DE CLÉ - BLACK HOLE HUB (Version Diagnostic Avancé)
+-- ============================================================
+local player = game.Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+local API_URL = "https://script.google.com/macros/s/AKfycbx3DF4jOP0ZV0H858UkHqyUAMHcgluIBMHIT0lpQ2xFMpWKW91_j3Z8iHqL8pJdXztD/exec"
+local SCRIPT_URL = "https://raw.githubusercontent.com/Flo-ATOMIC/Project-Atomic/refs/heads/main/OP-SCRIPT"
+
+-- ============================================================
+-- INTERFACE
+-- ============================================================
+local KeyGui = Instance.new("ScreenGui")
+KeyGui.Name = "KeySystemGui"
+KeyGui.ResetOnSpawn = false
+KeyGui.Parent = player:WaitForChild("PlayerGui")
+
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.new(0, 400, 0, 220)
+KeyFrame.Position = UDim2.new(0.5, -200, 0.5, -110)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+KeyFrame.BorderSizePixel = 0
+KeyFrame.Parent = KeyGui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 10)
+Corner.Parent = KeyFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundTransparency = 1
+Title.Text = "BLACK HOLE HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.FredokaOne
+Title.TextSize = 24
+Title.Parent = KeyFrame
+
+local Desc = Instance.new("TextLabel")
+Desc.Size = UDim2.new(1, 0, 0, 30)
+Desc.Position = UDim2.new(0, 0, 0, 50)
+Desc.BackgroundTransparency = 1
+Desc.Text = "Entre ta clé d'accès :"
+Desc.TextColor3 = Color3.fromRGB(200, 200, 200)
+Desc.Font = Enum.Font.Gotham
+Desc.TextSize = 14
+Desc.Parent = KeyFrame
+
+local TextBox = Instance.new("TextBox")
+TextBox.Size = UDim2.new(0.8, 0, 0, 40)
+TextBox.Position = UDim2.new(0.1, 0, 0, 90)
+TextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.PlaceholderText = "Ex: ATOMIC-XXXX"
+TextBox.Text = ""
+TextBox.Font = Enum.Font.Gotham
+TextBox.TextSize = 16
+TextBox.Parent = KeyFrame
+
+local BoxCorner = Instance.new("UICorner")
+BoxCorner.CornerRadius = UDim.new(0, 5)
+BoxCorner.Parent = TextBox
+
+local Btn = Instance.new("TextButton")
+Btn.Size = UDim2.new(0.8, 0, 0, 40)
+Btn.Position = UDim2.new(0.1, 0, 0, 150)
+Btn.BackgroundColor3 = Color3.fromRGB(150, 50, 255)
+Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Btn.Text = "Valider la clé"
+Btn.Font = Enum.Font.GothamBold
+Btn.TextSize = 16
+Btn.Parent = KeyFrame
+
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 5)
+BtnCorner.Parent = Btn
+
+local Msg = Instance.new("TextLabel")
+Msg.Size = UDim2.new(1, 0, 0, 30)
+Msg.Position = UDim2.new(0, 0, 0, 190)
+Msg.BackgroundTransparency = 1
+Msg.Text = ""
+Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
+Msg.Font = Enum.Font.GothamBold
+Msg.TextSize = 14
+Msg.Parent = KeyFrame
+
+-- ============================================================
+-- FONCTION DE REQUÊTE
+-- ============================================================
+local function MakeRequest(url)
+    local result = { success = false, body = nil }
+    local thread = task.spawn(function()
+        local ok, res = pcall(function() return game:HttpGet(url) end)
+        if ok and res then
+            result.success = true
+            result.body = res
+        end
+    end)
+
+    local timer = 0
+    while timer < 10 and not result.success do
+        task.wait(0.1)
+        timer = timer + 0.1
+    end
+
+    if not result.success then
+        pcall(function() task.cancel(thread) end)
+    end
+    return result.success, result.body
+end
+
+-- ============================================================
+-- LOGIQUE DU BOUTON
+-- ============================================================
+Btn.MouseButton1Click:Connect(function()
+    local key = TextBox.Text
+    if key == "" then
+        Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
+        Msg.Text = "Veuillez entrer une clé."
+        return
+    end
+
+    Msg.TextColor3 = Color3.fromRGB(255, 255, 50)
+    Msg.Text = "Vérification..."
+    Btn.Active = false
+    Btn.Text = "Chargement..."
+
+    local safeKey = HttpService:UrlEncode(key)
+    local requestUrl = API_URL .. "?key=" .. safeKey .. "&userid=" .. tostring(player.UserId)
+    local success, response = MakeRequest(requestUrl)
+
+    if success and response then
+        if string.find(response, "VALID") then
+            Msg.TextColor3 = Color3.fromRGB(0, 255, 0)
+            Msg.Text = "Clé validée ! Chargement..."
+            task.wait(1)
+            KeyGui:Destroy()
+            
+            -- 🚨 DIAGNOSTIC DU CHARGEMENT GITHUB
+            local loadSuccess, loadErr = pcall(function()
+                local code = game:HttpGet(SCRIPT_URL)
+                
+                -- Vérification si le fichier existe
+                if string.find(code, "404: Not Found") then
+                    error("Fichier introuvable sur GitHub (Erreur 404). Vérifie l'URL.")
+                end
+                
+                -- On compile le code pour voir s'il y a une erreur de syntaxe
+                local func, compileError = loadstring(code)
+                if not func then
+                    error("Erreur de syntaxe dans le script : " .. tostring(compileError))
+                end
+                
+                -- Si la compilation réussit, on exécute
+                func()
+            end)
+            
+            if not loadSuccess then
+                warn("=====================================")
+                warn("[KeySystem] ERREUR : " .. tostring(loadErr))
+                warn("=====================================")
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Erreur Script",
+                    Text = "Regarde ta console (F9) pour voir l'erreur exacte.",
+                    Duration = 10
+                })
+            end
+        else
+            Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
+            Msg.Text = "Clé invalide ou déjà utilisée."
+            Btn.Active = true
+            Btn.Text = "Valider la clé"
+        end
+    else
+        Msg.TextColor3 = Color3.fromRGB(255, 50, 50)
+        Msg.Text = "Erreur réseau (Timeout)."
+        Btn.Active = true
+        Btn.Text = "Valider la clé"
+    end
+end)
